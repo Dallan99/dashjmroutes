@@ -326,7 +326,7 @@ function Dashboard() {
         </section>
 
         <p className="pb-4 text-xs text-muted-foreground">
-          estes dados são somente da W33 - somente 1 semana - isso da para projetar no mês e anual
+          estes valores representam 1 semana, não perdas de um mês somente
         </p>
       </div>
     </main>
