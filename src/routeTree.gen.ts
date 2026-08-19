@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BaseBaseIdRouteImport } from './routes/base.$baseId'
+import { Route as MetricaMetricaIdRouteImport } from './routes/metrica.$metricaId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BaseBaseIdRoute = BaseBaseIdRouteImport.update({
+  id: '/base/$baseId',
+  path: '/base/$baseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MetricaMetricaIdRoute = MetricaMetricaIdRouteImport.update({
+  id: '/metrica/$metricaId',
+  path: '/metrica/$metricaId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/base/$baseId': typeof BaseBaseIdRoute
+  '/metrica/$metricaId': typeof MetricaMetricaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/base/$baseId': typeof BaseBaseIdRoute
+  '/metrica/$metricaId': typeof MetricaMetricaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/base/$baseId': typeof BaseBaseIdRoute
+  '/metrica/$metricaId': typeof MetricaMetricaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/base/$baseId' | '/metrica/$metricaId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/base/$baseId' | '/metrica/$metricaId'
+  id: '__root__' | '/' | '/base/$baseId' | '/metrica/$metricaId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BaseBaseIdRoute: typeof BaseBaseIdRoute
+  MetricaMetricaIdRoute: typeof MetricaMetricaIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/base/$baseId': {
+      id: '/base/$baseId'
+      path: '/base/$baseId'
+      fullPath: '/base/$baseId'
+      preLoaderRoute: typeof BaseBaseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/metrica/$metricaId': {
+      id: '/metrica/$metricaId'
+      path: '/metrica/$metricaId'
+      fullPath: '/metrica/$metricaId'
+      preLoaderRoute: typeof MetricaMetricaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BaseBaseIdRoute: BaseBaseIdRoute,
+  MetricaMetricaIdRoute: MetricaMetricaIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
