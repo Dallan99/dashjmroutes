@@ -172,8 +172,6 @@ function Dashboard() {
                 <BarChart
                   data={linhas}
                   margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
-                  onClick={undefined}
-                  className=""
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
