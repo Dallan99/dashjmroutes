@@ -99,7 +99,7 @@ function Dashboard() {
               <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
                 JMRoutes · Painel de Savings
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-primary-foreground/80">
                 Supply Chain AI Lead · Business case operacional
               </p>
             </div>
@@ -113,10 +113,10 @@ function Dashboard() {
               {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
             </button>
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70">
                 Economia anual projetada (projeção 52 semanas)
               </p>
-              <p className="text-xl font-semibold tabular-nums text-primary">
+              <p className="text-xl font-bold tabular-nums text-white">
                 {brl(economiaMensal * 52)}
               </p>
             </div>
