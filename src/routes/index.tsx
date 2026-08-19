@@ -172,16 +172,8 @@ function Dashboard() {
                 <BarChart
                   data={linhas}
                   margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
-                  onClick={(state: { activePayload?: { payload: { id: string } }[] }) => {
-                    const id = state?.activePayload?.[0]?.payload?.id;
-                    if (id)
-                      navigate({
-                        to: "/base/$baseId",
-                        params: { baseId: id },
-                        search: { eficacia },
-                      });
-                  }}
-                  className="cursor-pointer"
+                  onClick={undefined}
+                  className=""
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
