@@ -96,7 +96,7 @@ function Dashboard() {
               className="size-11 rounded-lg border border-border"
             />
             <div>
-              <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+              <h1 className="text-lg font-bold tracking-tight text-secondary sm:text-xl">
                 JMRoutes · Painel de Savings
               </h1>
               <p className="text-xs text-primary-foreground/80">
