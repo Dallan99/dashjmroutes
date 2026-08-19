@@ -336,8 +336,7 @@ function Dashboard() {
         </section>
 
         <p className="pb-4 text-xs text-muted-foreground">
-          Base de cálculo: relatório executivo de 18/08/2026. As 4 bases críticas representam 97%
-          das perdas totais por falhas operacionais.
+          a empresa, estes dados são somente da W33 - somente 1 semana - isso da para projetar no mês e anual
         </p>
       </div>
     </main>
