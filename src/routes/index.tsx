@@ -326,7 +326,7 @@ function Dashboard() {
         </section>
 
         <p className="pb-4 text-xs text-muted-foreground">
-          estas informações são as mais importantes, quanto este sistema economizaria por ano
+          * Valores baseados na redução real observada na base SSP34 (referência JM TD). Simulação sujeita a variações operacionais.
         </p>
       </div>
     </main>
