@@ -326,7 +326,7 @@ function Dashboard() {
         </section>
 
         <p className="pb-4 text-xs text-muted-foreground">
-          estes valores representam 1 semana, não perdas de um mês somente
+          estas informações são as mais importantes, quanto este sistema economizaria por ano
         </p>
       </div>
     </main>
