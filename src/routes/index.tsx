@@ -97,10 +97,10 @@ function Dashboard() {
           </div>
           <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Economia anual projetada
+              Economia anual projetada (projeção 52 semanas)
             </p>
             <p className="text-xl font-semibold tabular-nums text-primary">
-              {brl(economiaMensal * 12)}
+              {brl(economiaMensal * 52)}
             </p>
           </div>
         </div>
@@ -112,7 +112,7 @@ function Dashboard() {
             [
               {
                 id: "perda-atual",
-                label: "Perda mensal atual",
+                label: "Perda semanal atual",
                 value: brl(totalAtual),
                 hint: "Bases críticas em processo manual",
                 icon: TrendingUp,
@@ -120,7 +120,7 @@ function Dashboard() {
               },
               {
                 id: "perda-projetada",
-                label: "Perda mensal projetada",
+                label: "Perda semanal projetada",
                 value: brl(totalProjetado),
                 hint: `Piso de referência: ${brl(PISO_JMROUTES)} / base`,
                 icon: TrendingDown,
@@ -128,7 +128,7 @@ function Dashboard() {
               },
               {
                 id: "saving",
-                label: "Saving mensal",
+                label: "Saving semanal",
                 value: brl(economiaMensal),
                 hint: `Redução de ${reducaoPct.toFixed(1)}% das perdas`,
                 icon: Wallet,
@@ -165,7 +165,7 @@ function Dashboard() {
         <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Perda mensal por base
+              Perda semanal por base
             </h2>
             <div className="mt-5 h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -234,7 +234,7 @@ function Dashboard() {
                   <Label htmlFor={`base-${base.id}`} className="flex flex-col items-start gap-0.5">
                     <span className="text-sm font-medium">{base.nome}</span>
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {brl(base.perdaAtual)} / mês
+                      {brl(base.perdaAtual)} / semana
                     </span>
                   </Label>
                   <Switch
@@ -276,8 +276,8 @@ function Dashboard() {
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Base</th>
-                  <th className="px-5 py-3 text-right font-medium">Atual / mês</th>
-                  <th className="px-5 py-3 text-right font-medium">Projetado / mês</th>
+                  <th className="px-5 py-3 text-right font-medium">Atual / semana</th>
+                  <th className="px-5 py-3 text-right font-medium">Projetado / semana</th>
                   <th className="px-5 py-3 text-right font-medium">Saving anual</th>
                   <th className="px-5 py-3 text-right font-medium">Status</th>
                 </tr>
@@ -302,7 +302,7 @@ function Dashboard() {
                       {brl(l.projetado)}
                     </td>
                     <td className="px-5 py-3 text-right font-medium tabular-nums">
-                      {brl(l.economia * 12)}
+                      {brl(l.economia * 52)}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <span
