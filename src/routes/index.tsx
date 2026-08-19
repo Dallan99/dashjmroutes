@@ -172,7 +172,12 @@ function Dashboard() {
                   />
                   <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   <Bar dataKey="atual" name="Atual" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="projetado" name="Projetado" radius={[4, 4, 0, 0]}>
+                  <Bar
+                    dataKey="projetado"
+                    name="Projetado"
+                    fill="var(--chart-2)"
+                    radius={[4, 4, 0, 0]}
+                  >
                     {linhas.map((l) => (
                       <Cell
                         key={l.id}
