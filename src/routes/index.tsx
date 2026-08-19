@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CircleCheck, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { CircleCheck, TrendingDown, TrendingUp, Wallet, Moon, Sun } from "lucide-react";
 
 import logo from "@/assets/jmtd-logo.jpg.asset.json";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -104,13 +104,22 @@ function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Economia anual projetada (projeção 52 semanas)
-            </p>
-            <p className="text-xl font-semibold tabular-nums text-primary">
-              {brl(economiaMensal * 52)}
-            </p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="flex size-10 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-accent"
+              aria-label="Alternar tema"
+            >
+              {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
+            </button>
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Economia anual projetada (projeção 52 semanas)
+              </p>
+              <p className="text-xl font-semibold tabular-nums text-primary">
+                {brl(economiaMensal * 52)}
+              </p>
+            </div>
           </div>
         </div>
       </header>
