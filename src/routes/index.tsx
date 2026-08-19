@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -42,6 +42,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const navigate = useNavigate();
   const criticas = BASES.filter((b) => !b.comJMRoutes);
   const [selecionadas, setSelecionadas] = useState<string[]>(criticas.map((b) => b.id));
   const [eficacia, setEficacia] = useState(100);
@@ -107,34 +108,58 @@ function Dashboard() {
 
       <div className="mx-auto max-w-6xl space-y-6 px-5 py-7">
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Perda mensal atual"
-            value={brl(totalAtual)}
-            hint="Bases críticas em processo manual"
-            icon={TrendingUp}
-            tone="loss"
-          />
-          <KpiCard
-            label="Perda mensal projetada"
-            value={brl(totalProjetado)}
-            hint={`Piso de referência: ${brl(PISO_JMROUTES)} / base`}
-            icon={TrendingDown}
-            tone="gain"
-          />
-          <KpiCard
-            label="Saving mensal"
-            value={brl(economiaMensal)}
-            hint={`Redução de ${reducaoPct.toFixed(1)}% das perdas`}
-            icon={Wallet}
-            tone="highlight"
-          />
-          <KpiCard
-            label="Bases no escopo"
-            value={`${selecionadas.length} de ${criticas.length}`}
-            hint="Selecione as bases para simular a implantação"
-            icon={CircleCheck}
-            tone="neutral"
-          />
+          {(
+            [
+              {
+                id: "perda-atual",
+                label: "Perda mensal atual",
+                value: brl(totalAtual),
+                hint: "Bases críticas em processo manual",
+                icon: TrendingUp,
+                tone: "loss",
+              },
+              {
+                id: "perda-projetada",
+                label: "Perda mensal projetada",
+                value: brl(totalProjetado),
+                hint: `Piso de referência: ${brl(PISO_JMROUTES)} / base`,
+                icon: TrendingDown,
+                tone: "gain",
+              },
+              {
+                id: "saving",
+                label: "Saving mensal",
+                value: brl(economiaMensal),
+                hint: `Redução de ${reducaoPct.toFixed(1)}% das perdas`,
+                icon: Wallet,
+                tone: "highlight",
+              },
+              {
+                id: "escopo",
+                label: "Bases no escopo",
+                value: `${selecionadas.length} de ${criticas.length}`,
+                hint: "Ver detalhes da simulação",
+                icon: CircleCheck,
+                tone: "neutral",
+              },
+            ] as const
+          ).map((kpi) => (
+            <Link
+              key={kpi.id}
+              to="/metrica/$metricaId"
+              params={{ metricaId: kpi.id }}
+              search={{ eficacia, bases: selecionadas.join(",") }}
+              className="rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <KpiCard
+                label={kpi.label}
+                value={kpi.value}
+                hint={kpi.hint}
+                icon={kpi.icon}
+                tone={kpi.tone}
+              />
+            </Link>
+          ))}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -144,7 +169,20 @@ function Dashboard() {
             </h2>
             <div className="mt-5 h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={linhas} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                <BarChart
+                  data={linhas}
+                  margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+                  onClick={(state: { activePayload?: { payload: { id: string } }[] }) => {
+                    const id = state?.activePayload?.[0]?.payload?.id;
+                    if (id)
+                      navigate({
+                        to: "/base/$baseId",
+                        params: { baseId: id },
+                        search: { eficacia },
+                      });
+                  }}
+                  className="cursor-pointer"
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="nome"
@@ -257,7 +295,16 @@ function Dashboard() {
               <tbody>
                 {linhas.map((l) => (
                   <tr key={l.id} className="border-t border-border">
-                    <td className="px-5 py-3 font-medium">{l.nome}</td>
+                    <td className="px-5 py-3 font-medium">
+                      <Link
+                        to="/base/$baseId"
+                        params={{ baseId: l.id }}
+                        search={{ eficacia }}
+                        className="hover:text-primary hover:underline"
+                      >
+                        {l.nome}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3 text-right tabular-nums text-destructive">
                       {brl(l.atual)}
                     </td>
