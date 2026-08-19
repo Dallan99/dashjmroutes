@@ -99,7 +99,7 @@ function Dashboard() {
               <h1 className="text-lg font-bold tracking-tight text-secondary sm:text-xl">
                 JMRoutes · Painel de Savings
               </h1>
-              <p className="text-xs text-primary-foreground/80">
+              <p className="text-xs text-white">
                 Supply Chain AI Lead · Business case operacional
               </p>
             </div>
