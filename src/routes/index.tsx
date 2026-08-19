@@ -113,7 +113,7 @@ function Dashboard() {
               {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
             </button>
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
-              <p className="text-[11px] uppercase tracking-wider text-primary-foreground/70">
+              <p className="text-[11px] uppercase tracking-wider text-white sm:text-primary-foreground/70">
                 Economia anual projetada (projeção 52 semanas)
               </p>
               <p className="text-xl font-bold tabular-nums text-white">
