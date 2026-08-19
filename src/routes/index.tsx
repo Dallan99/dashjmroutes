@@ -46,6 +46,15 @@ function Dashboard() {
   const criticas = BASES.filter((b) => !b.comJMRoutes);
   const [selecionadas, setSelecionadas] = useState<string[]>(criticas.map((b) => b.id));
   const [eficacia, setEficacia] = useState(100);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
 
   const fator = eficacia / 100;
 
