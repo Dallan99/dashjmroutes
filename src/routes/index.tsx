@@ -107,10 +107,10 @@ function Dashboard() {
               className="size-11 rounded-lg border border-border"
             />
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-secondary sm:text-xl">
+              <h1 className="text-xl font-bold tracking-tight text-secondary sm:text-2xl">
                 JMRoutes · Painel de Savings
               </h1>
-              <p className="text-xs text-white">
+              <p className="text-xs font-semibold text-white">
                 Supply Chain AI Lead · Business case operacional
               </p>
             </div>
@@ -127,7 +127,7 @@ function Dashboard() {
               <p className="text-[11px] uppercase tracking-wider text-white">
                 Economia anual projetada (Operacional)
               </p>
-              <p className="text-xl font-bold tabular-nums text-white">
+              <p className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
                 {brl(currentSavingSemanal() * 52)}
               </p>
             </div>
@@ -136,11 +136,11 @@ function Dashboard() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-6">
-        <nav className="flex gap-1 border-b border-border mb-8 overflow-x-auto pb-px scrollbar-none">
+        <nav className="flex gap-4 border-b border-border mb-8 overflow-x-auto pb-px scrollbar-none">
           <button
             onClick={() => setView("savings")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
+              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "savings"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -151,7 +151,7 @@ function Dashboard() {
           <button
             onClick={() => setView("mao-de-obra")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
+              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "mao-de-obra"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -162,7 +162,7 @@ function Dashboard() {
           <button
             onClick={() => setView("consolidado")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
+              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "consolidado"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"

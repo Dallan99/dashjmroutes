@@ -132,12 +132,12 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
 
       <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Impacto Líquido Mensal
-          </h2>
-          <span className="text-xs font-medium text-destructive">
-            {MO_CONFIG.AVISO_CLT}
-          </span>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              Impacto Líquido Mensal
+            </h2>
+            <span className="text-sm font-bold text-destructive">
+              {MO_CONFIG.AVISO_CLT}
+            </span>
         </div>
         <div className="mt-8 h-[300px] w-full max-w-2xl mx-auto">
           <ResponsiveContainer width="100%" height="100%">
@@ -174,52 +174,52 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-4 text-center text-sm font-medium text-primary">
+        <p className="mt-4 text-center text-sm font-bold text-primary">
           “A redução dos Motoristas Amigos compensa aproximadamente {Math.round(stats.percentualCompensacao)}% do custo total dos {stats.estruturaCltTotal} CLTs.”
         </p>
       </div>
 
       <Accordion type="single" collapsible className="w-full space-y-4">
         <AccordionItem value="simulador" className="border rounded-xl bg-card px-5 shadow-sm">
-          <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:no-underline">
+          <AccordionTrigger className="text-sm font-bold uppercase tracking-wider text-muted-foreground hover:no-underline">
             Simulador de Mão de Obra
           </AccordionTrigger>
           <AccordionContent className="pb-5 pt-2">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
-                <Label>Quantidade de XPTs</Label>
+                <Label className="font-semibold">Quantidade de XPTs</Label>
                 <Input type="number" min="0" step="1" value={premises.quantidadeXpts} onChange={(e) => handleInputChange('quantidadeXpts', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>CLTs por XPT</Label>
+                <Label className="font-semibold">CLTs por XPT</Label>
                 <Input type="number" min="0" step="1" value={premises.cltsPorXpt} onChange={(e) => handleInputChange('cltsPorXpt', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>CLTs já contratados</Label>
+                <Label className="font-semibold">CLTs já contratados</Label>
                 <Input type="number" min="0" step="1" value={premises.cltsJaContratados} onChange={(e) => handleInputChange('cltsJaContratados', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Custo mensal por CLT (R$)</Label>
+                <Label className="font-semibold">Custo mensal por CLT (R$)</Label>
                 <Input type="number" min="0" step="1" value={premises.custoMensalClt} onChange={(e) => handleInputChange('custoMensalClt', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Motoristas Amigos atuais/dia</Label>
+                <Label className="font-semibold">Motoristas Amigos atuais/dia</Label>
                 <Input type="number" min="0" step="1" value={premises.motoristasAtuais} onChange={(e) => handleInputChange('motoristasAtuais', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Valor diário Motorista (R$)</Label>
+                <Label className="font-semibold">Valor diário Motorista (R$)</Label>
                 <Input type="number" min="0" step="1" value={premises.valorDiario} onChange={(e) => handleInputChange('valorDiario', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Dias mensais (Atual)</Label>
+                <Label className="font-semibold">Dias mensais (Atual)</Label>
                 <Input type="number" min="0" step="1" value={premises.diasAtuais} onChange={(e) => handleInputChange('diasAtuais', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Motoristas Propostos/dia</Label>
+                <Label className="font-semibold">Motoristas Propostos/dia</Label>
                 <Input type="number" min="0" step="1" value={premises.motoristasPropostos} onChange={(e) => handleInputChange('motoristasPropostos', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Dias mensais (Proposto)</Label>
+                <Label className="font-semibold">Dias mensais (Proposto)</Label>
                 <Input type="number" min="0" step="1" value={premises.diasPropostos} onChange={(e) => handleInputChange('diasPropostos', e.target.value)} />
               </div>
             </div>
@@ -235,11 +235,11 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
         </AccordionItem>
 
         <AccordionItem value="premissas" className="border rounded-xl bg-card px-5 shadow-sm">
-          <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:no-underline">
+          <AccordionTrigger className="text-sm font-bold uppercase tracking-wider text-muted-foreground hover:no-underline">
             Premissas do Estudo
           </AccordionTrigger>
           <AccordionContent className="pb-5 pt-2">
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-sm font-medium">
               {MO_CONFIG.PREMISSAS.map((p, i) => (
                 <li key={i} className="flex items-center gap-2">
                   <div className="size-1.5 rounded-full bg-primary" />
@@ -252,7 +252,7 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
       </Accordion>
 
       <section className="grid gap-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Zap className="size-4 text-secondary" /> Ganhos Operacionais
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -270,7 +270,7 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-foreground">{item.label}</h3>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+                <p className="text-sm font-semibold text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -280,11 +280,11 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <div className="border-b border-border px-5 py-4 bg-muted/30">
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Escala Semanal (Auxiliares)</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider">Escala Semanal (Auxiliares)</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
+              <tr className="text-left text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-5 py-3">Dia</th>
                 <th className="px-5 py-3 text-center">Atual (Amigos)</th>
                 <th className="px-5 py-3 text-center">Proposto (Amigos)</th>
@@ -293,27 +293,27 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             <tbody>
               {ESCALA_SEMANAL.map((e, i) => (
                 <tr key={i} className="border-b border-border last:border-0">
-                  <td className="px-5 py-3 font-medium">{e.dia}</td>
-                  <td className="px-5 py-3 text-center tabular-nums">{e.atual}</td>
-                  <td className={cn("px-5 py-3 text-center tabular-nums font-bold", e.proposto === 0 ? "text-success" : "text-primary")}>
+                  <td className="px-5 py-3 font-semibold">{e.dia}</td>
+                  <td className="px-5 py-3 text-center tabular-nums font-semibold">{e.atual}</td>
+                  <td className={cn("px-5 py-3 text-center tabular-nums font-extrabold", e.proposto === 0 ? "text-success" : "text-primary")}>
                     {e.proposto}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="p-4 text-xs text-muted-foreground bg-muted/10">
+          <p className="p-4 text-sm font-medium text-muted-foreground bg-muted/10 italic">
             * Aos finais de semana, o apoio permanece devido ao rodízio da equipe CLT e às necessidades de carga e descarga.
           </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <div className="border-b border-border px-5 py-4 bg-muted/30">
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Comparativo Motoristas Amigos</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider">Comparativo Motoristas Amigos</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
+              <tr className="text-left text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-5 py-3">Cenário</th>
                 <th className="px-5 py-3 text-right">Por XPT</th>
                 <th className="px-5 py-3 text-right">Total</th>
@@ -321,10 +321,10 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             </thead>
             <tbody>
               {comparativoMotoristas.map((c, i) => (
-                <tr key={i} className={cn("border-b border-border last:border-0", c.isSaving && "bg-success/5 font-bold text-success")}>
-                  <td className="px-5 py-3">{c.cenario}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{brl(c.porXpt)}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{brl(c.total4Xpts)}</td>
+                <tr key={i} className={cn("border-b border-border last:border-0", c.isSaving && "bg-success/5 font-extrabold text-success")}>
+                  <td className="px-5 py-3 font-semibold">{c.cenario}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-semibold">{brl(c.porXpt)}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-semibold">{brl(c.total4Xpts)}</td>
                 </tr>
               ))}
             </tbody>
@@ -335,11 +335,11 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
       <section className="grid gap-6 lg:grid-cols-2">
          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <div className="border-b border-border px-5 py-4 bg-muted/30">
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Detalhamento Custo CLT</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider">Detalhamento Custo CLT</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
+              <tr className="text-left text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-5 py-3">Referência</th>
                 <th className="px-5 py-3 text-center">Quantidade</th>
                 <th className="px-5 py-3 text-right">Custo Mensal</th>
@@ -347,24 +347,24 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             </thead>
             <tbody>
               <tr className="border-b border-border">
-                <td className="px-5 py-3">Por colaborador</td>
-                <td className="px-5 py-3 text-center">1</td>
-                <td className="px-5 py-3 text-right tabular-nums">{brl(premises.custoMensalClt)}</td>
+                <td className="px-5 py-3 font-semibold">Por colaborador</td>
+                <td className="px-5 py-3 text-center tabular-nums font-semibold">1</td>
+                <td className="px-5 py-3 text-right tabular-nums font-semibold">{brl(premises.custoMensalClt)}</td>
               </tr>
-              <tr className="border-b border-border font-bold text-primary bg-primary/5">
+              <tr className="border-b border-border font-extrabold text-primary bg-primary/5">
                 <td className="px-5 py-3">Estrutura total</td>
-                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-center tabular-nums">{stats.estruturaCltTotal}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
               <tr>
-                <td className="px-5 py-3">Composição</td>
-                <td className="px-5 py-3 text-center text-xs">{premises.cltsJaContratados} contratado + {stats.novasContratacoes} novos</td>
-                <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-5 py-3 font-semibold">Composição</td>
+                <td className="px-5 py-3 text-center text-sm font-semibold">{premises.cltsJaContratados} contratado + {stats.novasContratacoes} novos</td>
+                <td className="px-5 py-3 text-right tabular-nums text-muted-foreground font-semibold">—</td>
               </tr>
             </tbody>
           </table>
           <div className="p-4 bg-muted/10 space-y-2">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-bold text-destructive italic">
               * {MO_CONFIG.AVISO_CLT}
             </p>
           </div>
@@ -372,11 +372,11 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
 
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <div className="border-b border-border px-5 py-4 bg-muted/30">
-            <h3 className="text-sm font-semibold uppercase tracking-wider">Visão por XPT</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider">Visão por XPT</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
+              <tr className="text-left text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-5 py-3">XPT</th>
                 <th className="px-5 py-3 text-center">CLTs</th>
                 <th className="px-5 py-3 text-center text-xs">Contratado / Novos</th>
@@ -386,16 +386,16 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             <tbody>
               {visaoPorXpt.map((x, i) => (
                 <tr key={i} className="border-b border-border">
-                  <td className="px-5 py-3 font-medium">{x.xpt}</td>
-                  <td className="px-5 py-3 text-center tabular-nums">{x.clts}</td>
-                  <td className="px-5 py-3 text-center tabular-nums">{x.contratado} / {x.novos}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{brl(x.custo)}</td>
+                  <td className="px-5 py-3 font-semibold">{x.xpt}</td>
+                  <td className="px-5 py-3 text-center tabular-nums font-semibold">{x.clts}</td>
+                  <td className="px-5 py-3 text-center tabular-nums font-semibold">{x.contratado} / {x.novos}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-semibold">{brl(x.custo)}</td>
                 </tr>
               ))}
-              <tr className="font-bold bg-muted/50">
+              <tr className="font-extrabold bg-muted/50 text-primary">
                 <td className="px-5 py-3">Total</td>
-                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
-                <td className="px-5 py-3 text-center">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
+                <td className="px-5 py-3 text-center tabular-nums">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-center tabular-nums">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
             </tbody>
