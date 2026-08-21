@@ -1,4 +1,4 @@
-import { brl } from "./data";
+import { brl } from "../data";
 
 export interface MaodeObraStats {
   xptsNoEscopo: number;
@@ -32,7 +32,7 @@ export const MO_CONFIG = {
     motoristaAmigoDia: 60,
     motoristasPorXptDia: 3,
     diasMes: 30,
-    diasEscalaProposta: 17, // 4 dias/semana * 4.25 semanas aprox, ou conforme tabela (Qui-Dom = 4 dias)
+    diasEscalaProposta: 17,
   }
 };
 
@@ -41,9 +41,9 @@ export const MO_STATS: MaodeObraStats = {
   estruturaCltTotal: MO_CONFIG.VALORES.qtdTotalClt,
   novasContratacoes: MO_CONFIG.VALORES.qtdNovasContratacoes,
   custoUnitarioClt: MO_CONFIG.VALORES.custoUnitarioClt,
-  custoTotalClt: 35664, // 8 * 4458
-  custoNovasContratacoes: 31206, // 7 * 4458
-  economiaMotoristasAmigos: 13440,
+  custoTotalClt: MO_CONFIG.VALORES.qtdTotalClt * MO_CONFIG.VALORES.custoUnitarioClt,
+  custoNovasContratacoes: MO_CONFIG.VALORES.qtdNovasContratacoes * MO_CONFIG.VALORES.custoUnitarioClt,
+  economiaMotoristasAmigos: 13440, // Baseado em (3*60*30 - 2*60*17) * 4 = (5400 - 2040) * 4 = 13440
   impactoLiquido: 22224, // 35664 - 13440
   percentualCompensado: 38,
 };
@@ -71,3 +71,16 @@ export const VISAO_POR_XPT = [
   { xpt: "Guarujá", clts: 2, contratado: 0, novos: 2, custo: 8916 },
 ];
 
+export const getConsolidado = (savingSemanal: number) => {
+  const savingMensal = (savingSemanal * 52) / 12;
+  const impactoMaoDeObra = MO_STATS.impactoLiquido;
+  const resultadoLiquido = savingMensal - impactoMaoDeObra;
+  const percentualConsumido = (impactoMaoDeObra / savingMensal) * 100;
+
+  return {
+    savingMensal,
+    impactoMaoDeObra,
+    resultadoLiquido,
+    percentualConsumido,
+  };
+};
