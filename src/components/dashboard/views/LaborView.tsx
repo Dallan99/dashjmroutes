@@ -15,7 +15,6 @@ import {
 } from "@/components/dashboard/labor-data";
 import {
   Users,
-  UserPlus,
   CreditCard,
   ArrowDownCircle,
   TrendingDown,
@@ -32,6 +31,7 @@ import {
   YAxis,
   LabelList,
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 export function LaborView() {
   const waterfallData = [
@@ -107,7 +107,8 @@ export function LaborView() {
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
-                    return (active && payload && payload.length) ? (
+                    return (
+                      <div className="rounded-lg border border-border bg-popover p-2 text-xs shadow-md text-popover-foreground">
                         <p className="font-bold">{data.name}</p>
                         <p>{brl(Math.abs(data.value))}</p>
                       </div>
@@ -284,5 +285,3 @@ export function LaborView() {
     </div>
   );
 }
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(" ");
