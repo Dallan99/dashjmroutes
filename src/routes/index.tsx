@@ -69,7 +69,7 @@ function Dashboard() {
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
     navigate({
-      search: (prev) => ({ ...prev, view: newView }),
+      search: (prev: any) => ({ ...prev, view: newView }),
     } as any);
   };
 
