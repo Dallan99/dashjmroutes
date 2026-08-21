@@ -116,7 +116,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
             Perda semanal por base
           </h2>
           <div className="mt-5 h-[320px] w-full">
@@ -172,10 +172,10 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
         <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
               Simulação
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
               Escolha as bases que receberão o JMRoutes.
             </p>
           </div>
@@ -184,8 +184,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             {criticas.map((base) => (
               <div key={base.id} className="flex items-center justify-between gap-3">
                 <Label htmlFor={`base-${base.id}`} className="flex flex-col items-start gap-0.5">
-                  <span className="text-sm font-medium">{base.nome}</span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+                  <span className="text-sm font-semibold">{base.nome}</span>
+                  <span className="text-sm font-semibold tabular-nums text-muted-foreground">
                     {brl(base.perdaAtual)} / semana
                   </span>
                 </Label>
@@ -200,8 +200,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
           <div className="space-y-3 border-t border-border pt-4">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Eficácia da implantação</Label>
-              <span className="text-sm font-semibold tabular-nums text-primary">{eficacia}%</span>
+              <Label className="text-sm font-semibold">Eficácia da implantação</Label>
+              <span className="text-sm font-extrabold tabular-nums text-primary">{eficacia}%</span>
             </div>
             <Slider
               value={[eficacia]}
@@ -210,7 +210,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               max={100}
               step={5}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               100% equivale ao desempenho real da base SSP34 (Embu).
             </p>
           </div>
@@ -219,25 +219,25 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
             Detalhamento por base
           </h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Base</th>
-                <th className="px-5 py-3 text-right font-medium">Atual / semana</th>
-                <th className="px-5 py-3 text-right font-medium">Projetado / semana</th>
-                <th className="px-5 py-3 text-right font-medium">Saving anual</th>
-                <th className="px-5 py-3 text-right font-medium">Status</th>
+              <tr className="text-left text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="px-5 py-3">Base</th>
+                <th className="px-5 py-3 text-right">Atual / semana</th>
+                <th className="px-5 py-3 text-right">Projetado / semana</th>
+                <th className="px-5 py-3 text-right">Saving anual</th>
+                <th className="px-5 py-3 text-right">Status</th>
               </tr>
             </thead>
             <tbody>
               {linhas.map((l) => (
                 <tr key={l.id} className="border-t border-border">
-                  <td className="px-5 py-3 font-medium">
+                  <td className="px-5 py-3 font-semibold">
                     <Link
                       to="/base/$baseId"
                       params={{ baseId: l.id }}
@@ -247,13 +247,13 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                       {l.nome}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-right tabular-nums text-destructive">
+                  <td className="px-5 py-3 text-right tabular-nums text-destructive font-semibold">
                     {brl(l.atual)}
                   </td>
-                  <td className="px-5 py-3 text-right tabular-nums text-success">
+                  <td className="px-5 py-3 text-right tabular-nums text-success font-semibold">
                     {brl(l.projetado)}
                   </td>
-                  <td className="px-5 py-3 text-right font-medium tabular-nums">
+                  <td className="px-5 py-3 text-right font-extrabold tabular-nums">
                     {brl(l.economia * 52)}
                   </td>
                   <td className="px-5 py-3 text-right">
@@ -277,7 +277,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
-      <p className="pb-4 text-xs text-muted-foreground">
+      <p className="pb-4 text-sm font-medium text-muted-foreground italic">
         * Valores baseados na redução real observada na base SSP34 (referência JM TD). Simulação sujeita a variações operacionais.
       </p>
     </div>
