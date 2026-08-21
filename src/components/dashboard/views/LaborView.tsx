@@ -386,16 +386,16 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
             <tbody>
               {visaoPorXpt.map((x, i) => (
                 <tr key={i} className="border-b border-border">
-                  <td className="px-5 py-3 font-medium">{x.xpt}</td>
-                  <td className="px-5 py-3 text-center tabular-nums">{x.clts}</td>
-                  <td className="px-5 py-3 text-center tabular-nums">{x.contratado} / {x.novos}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{brl(x.custo)}</td>
+                  <td className="px-5 py-3 font-semibold">{x.xpt}</td>
+                  <td className="px-5 py-3 text-center tabular-nums font-semibold">{x.clts}</td>
+                  <td className="px-5 py-3 text-center tabular-nums font-semibold">{x.contratado} / {x.novos}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-semibold">{brl(x.custo)}</td>
                 </tr>
               ))}
-              <tr className="font-bold bg-muted/50">
+              <tr className="font-extrabold bg-muted/50 text-primary">
                 <td className="px-5 py-3">Total</td>
-                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
-                <td className="px-5 py-3 text-center">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
+                <td className="px-5 py-3 text-center tabular-nums">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-center tabular-nums">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
             </tbody>

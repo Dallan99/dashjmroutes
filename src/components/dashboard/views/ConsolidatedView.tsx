@@ -54,7 +54,7 @@ export function ConsolidatedView({ selecionadas, eficacia, impactoMaoDeObra: sim
                   <KpiCard
                     label="Saving operacional mensal"
                     value={brl(savingMensal)}
-                    hint="Projeção 52 semanas / 12 meses (font-semibold)"
+                    hint="Projeção 52 semanas / 12 meses"
                     icon={TrendingUp}
                     tone="highlight"
                   />
