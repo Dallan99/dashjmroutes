@@ -95,8 +95,8 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
         />
         <KpiCard
           label="Estrutura CLT total"
-          value={`${stats.totalClts} colaboradores`}
-          hint={`${stats.cltsJaContratados} contratados + ${stats.novasContratacoes} novos`}
+          value={`${stats.estruturaCltTotal} colaboradores`}
+          hint={`${premises.cltsJaContratados} contratados + ${stats.novasContratacoes} novos`}
           icon={Users}
           tone="neutral"
         />
@@ -175,7 +175,7 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
           </ResponsiveContainer>
         </div>
         <p className="mt-4 text-center text-sm font-medium text-primary">
-          “A redução dos Motoristas Amigos compensa aproximadamente {Math.round(stats.percentualCompensacao)}% do custo total dos {stats.totalClts} CLTs.”
+          “A redução dos Motoristas Amigos compensa aproximadamente {Math.round(stats.percentualCompensacao)}% do custo total dos {stats.estruturaCltTotal} CLTs.”
         </p>
       </div>
 
@@ -353,12 +353,12 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
               </tr>
               <tr className="border-b border-border font-bold text-primary bg-primary/5">
                 <td className="px-5 py-3">Estrutura total</td>
-                <td className="px-5 py-3 text-center">{stats.totalClts}</td>
+                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
               <tr>
                 <td className="px-5 py-3">Composição</td>
-                <td className="px-5 py-3 text-center text-xs">{stats.cltsJaContratados} contratado + {stats.novasContratacoes} novos</td>
+                <td className="px-5 py-3 text-center text-xs">{premises.cltsJaContratados} contratado + {stats.novasContratacoes} novos</td>
                 <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">—</td>
               </tr>
             </tbody>
@@ -394,8 +394,8 @@ export function LaborView({ premises, setPremises }: LaborViewProps) {
               ))}
               <tr className="font-bold bg-muted/50">
                 <td className="px-5 py-3">Total</td>
-                <td className="px-5 py-3 text-center">{stats.totalClts}</td>
-                <td className="px-5 py-3 text-center">{stats.cltsJaContratados} / {stats.novasContratacoes}</td>
+                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-center">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
             </tbody>
