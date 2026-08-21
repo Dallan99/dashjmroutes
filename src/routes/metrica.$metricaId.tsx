@@ -60,6 +60,7 @@ function MetricaDetalhe() {
       <div className="mx-auto max-w-3xl space-y-6 px-5 py-8">
         <Link
           to="/"
+          search={{ view: "savings", eficacia, bases }}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" /> Voltar ao painel

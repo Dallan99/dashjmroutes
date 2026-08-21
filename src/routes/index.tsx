@@ -7,6 +7,7 @@ import { SavingsView } from "@/components/dashboard/views/SavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
 import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 
 const dashboardSearchSchema = z.object({
   view: z.enum(["savings", "mao-de-obra", "consolidado"]).optional().default("savings"),
@@ -86,7 +87,7 @@ function Dashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <header className="border-b border-border bg-[image:var(--gradient-hero)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -125,11 +126,11 @@ function Dashboard() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-6">
-        <nav className="flex gap-1 border-b border-border mb-8 overflow-x-auto pb-px">
+        <nav className="flex gap-1 border-b border-border mb-8 overflow-x-auto pb-px scrollbar-none">
           <button
             onClick={() => setView("savings")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "savings"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -140,7 +141,7 @@ function Dashboard() {
           <button
             onClick={() => setView("mao-de-obra")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "mao-de-obra"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -151,7 +152,7 @@ function Dashboard() {
           <button
             onClick={() => setView("consolidado")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
               view === "consolidado"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -161,21 +162,21 @@ function Dashboard() {
           </button>
         </nav>
 
-        {view === "savings" && (
-          <SavingsView
-            selecionadas={selecionadas}
-            setSelecionadas={setSelecionadas}
-            eficacia={eficacia}
-            setEficacia={setEficacia}
-          />
-        )}
-        {view === "mao-de-obra" && <LaborView />}
-        {view === "consolidado" && (
-          <ConsolidatedView selecionadas={selecionadas} eficacia={eficacia} />
-        )}
+        <div className="transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
+          {view === "savings" && (
+            <SavingsView
+              selecionadas={selecionadas}
+              setSelecionadas={setSelecionadas}
+              eficacia={eficacia}
+              setEficacia={setEficacia}
+            />
+          )}
+          {view === "mao-de-obra" && <LaborView />}
+          {view === "consolidado" && (
+            <ConsolidatedView selecionadas={selecionadas} eficacia={eficacia} />
+          )}
+        </div>
       </div>
     </main>
   );
 }
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(" ");
