@@ -9,7 +9,7 @@ import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView"
 import { z } from "zod";
 
 const dashboardSearchSchema = z.object({
-  view: z.enum(["savings", "mao-de-obra", "consolidado"]).catch("savings"),
+  view: z.enum(["savings", "mao-de-obra", "consolidado"]).default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
 });
