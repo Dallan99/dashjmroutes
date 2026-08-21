@@ -9,10 +9,12 @@ import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView"
 import { z } from "zod";
 
 const dashboardSearchSchema = z.object({
-  view: z.enum(["savings", "mao-de-obra", "consolidado"]).default("savings"),
+  view: z.enum(["savings", "mao-de-obra", "consolidado"]).optional().default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
 });
+
+type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
 
 export const Route = createFileRoute("/")({
   validateSearch: (search) => dashboardSearchSchema.parse(search),
@@ -35,7 +37,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/" });
+  const search = useSearch({ from: "/" }) as DashboardSearch;
   const view = search.view || "savings";
 
   const criticas = BASES.filter((b) => !b.comJMRoutes);
@@ -56,7 +58,7 @@ function Dashboard() {
   // Sync state to URL
   useEffect(() => {
     navigate({
-      search: (prev) => ({
+      search: (prev: any) => ({
         ...prev,
         view,
         bases: selecionadas.join(","),
@@ -68,7 +70,7 @@ function Dashboard() {
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
     navigate({
-      search: (prev) => ({ ...prev, view: newView }),
+      search: (prev: any) => ({ ...prev, view: newView }),
     });
   };
 
