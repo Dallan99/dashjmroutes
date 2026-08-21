@@ -54,14 +54,14 @@ export function ConsolidatedView({ selecionadas, eficacia, impactoMaoDeObra: sim
                   <KpiCard
                     label="Saving operacional mensal"
                     value={brl(savingMensal)}
-                    hint="Projeção 52 semanas / 12 meses"
+                    hint="Projeção 52 semanas / 12 meses (font-semibold)"
                     icon={TrendingUp}
                     tone="highlight"
                   />
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Conversão mensal equivalente calculada pela projeção de 52 semanas dividida por 12 meses.</p>
+                <p className="text-sm font-medium">Conversão mensal equivalente calculada pela projeção de 52 semanas dividida por 12 meses.</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -109,29 +109,29 @@ export function ConsolidatedView({ selecionadas, eficacia, impactoMaoDeObra: sim
       </TooltipProvider>
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Resumo da Viabilidade</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Resumo da Viabilidade</h2>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm font-medium text-muted-foreground leading-relaxed">
               O projeto demonstra alta viabilidade financeira. Mesmo estruturando uma equipe fixa CLT, o impacto líquido na folha (R$ {impactoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) representa apenas <strong>{percentualConsumido.toFixed(1)}%</strong> do saving operacional gerado pelo sistema JMRoutes no mesmo período.
             </p>
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Resultado Líquido Final</p>
-              <p className="text-2xl font-bold text-primary">{brl(resultadoLiquido)}<span className="text-sm font-normal text-muted-foreground ml-1">/mês</span></p>
+              <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Resultado Líquido Final</p>
+              <p className="text-2xl font-extrabold text-primary">{brl(resultadoLiquido)}<span className="text-sm font-normal text-muted-foreground ml-1">/mês</span></p>
             </div>
           </div>
           <div className="space-y-3">
              <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Fórmula Consolidada</span>
+              <span className="text-sm font-bold text-muted-foreground">Fórmula Consolidada</span>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg font-mono text-xs space-y-2">
-              <p className="text-primary font-bold">resultadoLiquido = savingMensal - impactoMO</p>
-              <p className="text-muted-foreground border-t border-border pt-2 mt-2">
+              <p className="text-primary font-extrabold">resultadoLiquido = savingMensal - impactoMO</p>
+              <p className="text-muted-foreground border-t border-border pt-2 mt-2 font-semibold">
                 Saving Mensal: {brl(savingMensal)}<br/>
                 (-) Impacto Mão de Obra: {brl(impactoMaoDeObra)}
               </p>
             </div>
-            <p className="text-[10px] text-destructive italic">
+            <p className="text-sm font-bold text-destructive italic">
               * {MO_CONFIG.AVISO_CLT}
             </p>
           </div>
