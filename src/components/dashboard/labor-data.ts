@@ -56,7 +56,7 @@ export const calculateLaborStats = (p: LaborPremises) => {
     estruturaCltTotal: totalClts,
     novasContratacoes,
     custoUnitarioClt: p.custoMensalClt,
-    custoTotalClt,
+    custoTotalClt: custoCltTotal,
     custoNovasContratacoes,
     economiaMotoristasAmigos: economiaMotoristas,
     impactoLiquido,

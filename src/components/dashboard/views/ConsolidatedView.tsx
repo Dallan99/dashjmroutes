@@ -20,9 +20,10 @@ import {
 interface ConsolidatedViewProps {
   selecionadas: string[];
   eficacia: number;
+  impactoMaoDeObra: number;
 }
 
-export function ConsolidatedView({ selecionadas, eficacia }: ConsolidatedViewProps) {
+export function ConsolidatedView({ selecionadas, eficacia, impactoMaoDeObra: simulationImpactMO }: ConsolidatedViewProps) {
   const fator = eficacia / 100;
 
   const savingSemanal = useMemo(() => {
@@ -40,7 +41,7 @@ export function ConsolidatedView({ selecionadas, eficacia }: ConsolidatedViewPro
     impactoMaoDeObra,
     resultadoLiquido,
     percentualConsumido,
-  } = getConsolidado(savingSemanal);
+  } = getConsolidado(savingSemanal, simulationImpactMO);
 
   return (
     <div className="space-y-6">
@@ -66,9 +67,9 @@ export function ConsolidatedView({ selecionadas, eficacia }: ConsolidatedViewPro
           </div>
 
           <KpiCard
-            label="Custo total CLTs (8)"
-            value={brl(35664)}
-            hint="Base mensal fixa"
+            label="Custo total CLTs"
+            value={brl(savingMensal > 0 ? (impactoMaoDeObra + 13440) : 35664)} // Fallback conceptual or dynamic
+            hint="Base mensal simulada"
             icon={CreditCard}
             tone="loss"
           />
@@ -76,7 +77,7 @@ export function ConsolidatedView({ selecionadas, eficacia }: ConsolidatedViewPro
           <KpiCard
             label="Econ. Motoristas Amigos"
             value={brl(13440)}
-            hint="Redução mensal 4 XPTs"
+            hint="Redução mensal simulada"
             icon={TrendingDown}
             tone="gain"
           />
@@ -112,7 +113,7 @@ export function ConsolidatedView({ selecionadas, eficacia }: ConsolidatedViewPro
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              O projeto demonstra alta viabilidade financeira. Mesmo estruturando uma equipe fixa de 8 colaboradores CLT, o impacto líquido na folha (R$ 22.224,00) representa apenas <strong>{percentualConsumido.toFixed(1)}%</strong> do saving operacional gerado pelo sistema JMRoutes no mesmo período.
+              O projeto demonstra alta viabilidade financeira. Mesmo estruturando uma equipe fixa CLT, o impacto líquido na folha (R$ {impactoMaoDeObra.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) representa apenas <strong>{percentualConsumido.toFixed(1)}%</strong> do saving operacional gerado pelo sistema JMRoutes no mesmo período.
             </p>
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Resultado Líquido Final</p>
