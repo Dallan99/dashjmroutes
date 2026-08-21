@@ -59,19 +59,24 @@ function Dashboard() {
   // Sync state to URL
   useEffect(() => {
     navigate({
-      search: (prev: any) => ({
-        ...prev,
-        view,
-        bases: selecionadas.join(","),
-        eficacia,
-      }),
+      search: (prev) => {
+        const next = { ...prev };
+        next.view = view;
+        next.bases = selecionadas.join(",");
+        next.eficacia = eficacia;
+        return next;
+      },
       replace: true,
     });
   }, [selecionadas, eficacia, view, navigate]);
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
     navigate({
-      search: (prev: any) => ({ ...prev, view: newView }),
+      search: (prev) => {
+        const next = { ...prev };
+        next.view = newView;
+        return next;
+      },
     });
   };
 
