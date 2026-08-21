@@ -57,7 +57,7 @@ function Dashboard() {
   // Sync state to URL
   useEffect(() => {
     navigate({
-      search: (prev) => ({
+      search: (prev: any) => ({
         ...prev,
         view,
         bases: selecionadas.join(","),
