@@ -13,6 +13,7 @@ const dashboardSearchSchema = z.object({
   view: z.enum(["savings", "mao-de-obra", "consolidado"]).optional().default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
+  labor: z.string().optional(),
 });
 
 export const Route = createFileRoute("/")({
@@ -34,6 +35,8 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
+import { MO_CONFIG, calculateLaborStats, LaborPremises } from "@/components/dashboard/labor-data";
+
 function Dashboard() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/" });
@@ -45,6 +48,14 @@ function Dashboard() {
   const [selecionadas, setSelecionadas] = useState<string[]>(initialBases);
   const [eficacia, setEficacia] = useState(search.eficacia ?? 100);
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Mão de Obra Simulation State
+  const initialLabor: LaborPremises = search.labor 
+    ? JSON.parse(decodeURIComponent(search.labor)) 
+    : MO_CONFIG.VALORES_PADRAO;
+  const [laborPremises, setLaborPremises] = useState<LaborPremises>(initialLabor);
+
+  const laborStats = calculateLaborStats(laborPremises);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -62,10 +73,11 @@ function Dashboard() {
         view,
         bases: selecionadas.join(","),
         eficacia,
+        labor: encodeURIComponent(JSON.stringify(laborPremises)),
       }),
       replace: true,
     } as any);
-  }, [selecionadas, eficacia, view, navigate]);
+  }, [selecionadas, eficacia, view, laborPremises, navigate]);
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
     navigate({
@@ -169,9 +181,15 @@ function Dashboard() {
               setEficacia={setEficacia}
             />
           )}
-          {view === "mao-de-obra" && <LaborView />}
+          {view === "mao-de-obra" && (
+            <LaborView premises={laborPremises} setPremises={setLaborPremises} />
+          )}
           {view === "consolidado" && (
-            <ConsolidatedView selecionadas={selecionadas} eficacia={eficacia} />
+            <ConsolidatedView 
+              selecionadas={selecionadas} 
+              eficacia={eficacia} 
+              impactoMaoDeObra={laborStats.impactoLiquido} 
+            />
           )}
         </div>
       </div>

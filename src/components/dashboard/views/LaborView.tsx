@@ -8,10 +8,11 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { brl } from "@/components/dashboard/data";
 import {
   MO_CONFIG,
-  MO_STATS,
+  LaborPremises,
+  calculateLaborStats,
+  getComparativoMotoristas,
+  getVisaoPorXpt,
   ESCALA_SEMANAL,
-  COMPARATIVO_MOTORISTAS,
-  VISAO_POR_XPT,
 } from "@/components/dashboard/labor-data";
 import {
   Users,
@@ -19,6 +20,14 @@ import {
   ArrowDownCircle,
   TrendingDown,
   Info,
+  CheckCircle2,
+  Lock,
+  Zap,
+  MessageSquare,
+  ShieldCheck,
+  LayoutGrid,
+  RotateCcw,
+  Trash2
 } from "lucide-react";
 import {
   Bar,
@@ -32,55 +41,89 @@ import {
   LabelList,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
-export function LaborView() {
+interface LaborViewProps {
+  premises: LaborPremises;
+  setPremises: (p: LaborPremises | ((prev: LaborPremises) => LaborPremises)) => void;
+}
+
+export function LaborView({ premises, setPremises }: LaborViewProps) {
+  const stats = calculateLaborStats(premises);
+  const comparativoMotoristas = getComparativoMotoristas(premises);
+  const visaoPorXpt = getVisaoPorXpt(premises);
+
   const waterfallData = [
-    { name: "Custo CLT (8)", value: MO_STATS.custoTotalClt, fill: "var(--destructive)" },
-    { name: "Econ. Amigos", value: -MO_STATS.economiaMotoristasAmigos, fill: "var(--success)" },
-    { name: "Impacto Líquido", value: MO_STATS.impactoLiquido, fill: "var(--primary)" },
+    { name: "Custo CLT", value: stats.custoTotalClt, fill: "var(--destructive)" },
+    { name: "Econ. Amigos", value: -stats.economiaMotoristasAmigos, fill: "var(--success)" },
+    { name: "Impacto Líquido", value: stats.impactoLiquido, fill: "var(--primary)" },
   ];
+
+  const handleInputChange = (key: keyof LaborPremises, value: string) => {
+    const num = parseFloat(value) || 0;
+    setPremises(prev => {
+      const next = { ...prev, [key]: num };
+      // Validation: Já contratados cannot exceed total CLTs
+      if (key === 'cltsJaContratados' || key === 'quantidadeXpts' || key === 'cltsPorXpt') {
+        const total = (key === 'quantidadeXpts' ? num : prev.quantidadeXpts) * (key === 'cltsPorXpt' ? num : prev.cltsPorXpt);
+        const contratados = key === 'cltsJaContratados' ? num : prev.cltsJaContratados;
+        if (contratados > total) {
+           next.cltsJaContratados = total;
+        }
+      }
+      return next;
+    });
+  };
+
+  const resetPremises = () => setPremises(MO_CONFIG.VALORES_PADRAO);
+  const clearSimulation = () => {
+    localStorage.removeItem('labor-simulation');
+    resetPremises();
+  };
 
   return (
     <div className="space-y-6">
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="XPTs no escopo"
-          value={MO_STATS.xptsNoEscopo.toString()}
-          hint="Embu, Franco, Ibiúna, Guarujá"
+          value={stats.xptsNoEscopo.toString()}
+          hint="Bases simuladas"
           icon={Info}
           tone="neutral"
         />
         <KpiCard
           label="Estrutura CLT total"
-          value={`${MO_STATS.estruturaCltTotal} colaboradores`}
-          hint="1 contratado + 7 novos"
+          value={`${stats.estruturaCltTotal} colaboradores`}
+          hint={`${premises.cltsJaContratados} contratados + ${stats.novasContratacoes} novos`}
           icon={Users}
           tone="neutral"
         />
         <KpiCard
-          label="Custo total (8 CLTs)"
-          value={brl(MO_STATS.custoTotalClt)}
-          hint={`Custo unitário: ${brl(MO_CONFIG.VALORES.custoUnitarioClt)}/mês`}
+          label="Custo total CLTs"
+          value={brl(stats.custoTotalClt)}
+          hint={`Custo unitário: ${brl(stats.custoUnitarioClt)}/mês`}
           icon={CreditCard}
           tone="loss"
         />
         <KpiCard
           label="Economia Motoristas Amigos"
-          value={brl(MO_STATS.economiaMotoristasAmigos)}
-          hint="Redução de 3 para 2 auxiliares/dia"
+          value={brl(stats.economiaMotoristasAmigos)}
+          hint="Redução simulada"
           icon={TrendingDown}
           tone="gain"
         />
         <KpiCard
           label="Impacto líquido mensal"
-          value={brl(MO_STATS.impactoLiquido)}
+          value={brl(stats.impactoLiquido)}
           hint="Diferença custo vs economia"
           icon={ArrowDownCircle}
           tone="highlight"
         />
         <KpiCard
           label="Compensação aproximada"
-          value={`${MO_STATS.percentualCompensado}%`}
+          value={`${Math.round(stats.percentualCompensacao)}%`}
           hint="Do custo CLT pago pelo saving"
           icon={ArrowDownCircle}
           tone="highlight"
@@ -132,11 +175,65 @@ export function LaborView() {
           </ResponsiveContainer>
         </div>
         <p className="mt-4 text-center text-sm font-medium text-primary">
-          “A redução dos Motoristas Amigos compensa aproximadamente 38% do custo total dos 8 CLTs.”
+          “A redução dos Motoristas Amigos compensa aproximadamente {Math.round(stats.percentualCompensacao)}% do custo total dos {stats.estruturaCltTotal} CLTs.”
         </p>
       </div>
 
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="w-full space-y-4">
+        <AccordionItem value="simulador" className="border rounded-xl bg-card px-5 shadow-sm">
+          <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:no-underline">
+            Simulador de Mão de Obra
+          </AccordionTrigger>
+          <AccordionContent className="pb-5 pt-2">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Quantidade de XPTs</Label>
+                <Input type="number" min="0" step="1" value={premises.quantidadeXpts} onChange={(e) => handleInputChange('quantidadeXpts', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>CLTs por XPT</Label>
+                <Input type="number" min="0" step="1" value={premises.cltsPorXpt} onChange={(e) => handleInputChange('cltsPorXpt', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>CLTs já contratados</Label>
+                <Input type="number" min="0" step="1" value={premises.cltsJaContratados} onChange={(e) => handleInputChange('cltsJaContratados', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Custo mensal por CLT (R$)</Label>
+                <Input type="number" min="0" step="1" value={premises.custoMensalClt} onChange={(e) => handleInputChange('custoMensalClt', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Motoristas Amigos atuais/dia</Label>
+                <Input type="number" min="0" step="1" value={premises.motoristasAtuais} onChange={(e) => handleInputChange('motoristasAtuais', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor diário Motorista (R$)</Label>
+                <Input type="number" min="0" step="1" value={premises.valorDiario} onChange={(e) => handleInputChange('valorDiario', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Dias mensais (Atual)</Label>
+                <Input type="number" min="0" step="1" value={premises.diasAtuais} onChange={(e) => handleInputChange('diasAtuais', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Motoristas Propostos/dia</Label>
+                <Input type="number" min="0" step="1" value={premises.motoristasPropostos} onChange={(e) => handleInputChange('motoristasPropostos', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Dias mensais (Proposto)</Label>
+                <Input type="number" min="0" step="1" value={premises.diasPropostos} onChange={(e) => handleInputChange('diasPropostos', e.target.value)} />
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button variant="outline" size="sm" onClick={resetPremises} className="flex items-center gap-2">
+                <RotateCcw className="size-4" /> Restaurar premissas
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearSimulation} className="text-destructive hover:text-destructive flex items-center gap-2">
+                <Trash2 className="size-4" /> Limpar simulação
+              </Button>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
         <AccordionItem value="premissas" className="border rounded-xl bg-card px-5 shadow-sm">
           <AccordionTrigger className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:no-underline">
             Premissas do Estudo
@@ -153,6 +250,32 @@ export function LaborView() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <section className="grid gap-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <Zap className="size-4 text-secondary" /> Ganhos Operacionais
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { label: "Qualidade operacional", desc: "Equipe fixa, treinada e com rotinas padronizadas", icon: CheckCircle2 },
+            { label: "Rastreabilidade", desc: "Maior controle dos pacotes e registros", icon: Lock },
+            { label: "Agilidade nas tratativas", desc: "Ocorrências resolvidas mais rapidamente", icon: Zap },
+            { label: "Atendimento ao cliente", desc: "Menor tempo de resposta", icon: MessageSquare },
+            { label: "Controle operacional", desc: "Responsabilidades e monitoramento definidos", icon: ShieldCheck },
+            { label: "Equipe multifuncional", desc: "Apoio em recebimento, expedição e devoluções", icon: LayoutGrid },
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card shadow-sm transition-all hover:border-primary/50">
+              <div className="mt-1 p-2 rounded-lg bg-primary/10 text-primary">
+                <item.icon className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">{item.label}</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
@@ -193,11 +316,11 @@ export function LaborView() {
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-5 py-3">Cenário</th>
                 <th className="px-5 py-3 text-right">Por XPT</th>
-                <th className="px-5 py-3 text-right">4 XPTs</th>
+                <th className="px-5 py-3 text-right">Total</th>
               </tr>
             </thead>
             <tbody>
-              {COMPARATIVO_MOTORISTAS.map((c, i) => (
+              {comparativoMotoristas.map((c, i) => (
                 <tr key={i} className={cn("border-b border-border last:border-0", c.isSaving && "bg-success/5 font-bold text-success")}>
                   <td className="px-5 py-3">{c.cenario}</td>
                   <td className="px-5 py-3 text-right tabular-nums">{brl(c.porXpt)}</td>
@@ -226,26 +349,23 @@ export function LaborView() {
               <tr className="border-b border-border">
                 <td className="px-5 py-3">Por colaborador</td>
                 <td className="px-5 py-3 text-center">1</td>
-                <td className="px-5 py-3 text-right tabular-nums">{brl(MO_CONFIG.VALORES.custoUnitarioClt)}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{brl(premises.custoMensalClt)}</td>
               </tr>
               <tr className="border-b border-border font-bold text-primary bg-primary/5">
                 <td className="px-5 py-3">Estrutura total</td>
-                <td className="px-5 py-3 text-center">8</td>
-                <td className="px-5 py-3 text-right tabular-nums">{brl(MO_STATS.custoTotalClt)}</td>
+                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
               <tr>
                 <td className="px-5 py-3">Composição</td>
-                <td className="px-5 py-3 text-center text-xs">1 contratado + 7 novos</td>
+                <td className="px-5 py-3 text-center text-xs">{premises.cltsJaContratados} contratado + {stats.novasContratacoes} novos</td>
                 <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">—</td>
               </tr>
             </tbody>
           </table>
           <div className="p-4 bg-muted/10 space-y-2">
             <p className="text-xs text-muted-foreground">
-              * Custo baseado em: Salário R$ 2.100, VR R$ 39/dia, VA R$ 180/mês, encargos, 13º e férias.
-            </p>
-            <p className="text-xs font-semibold text-primary">
-              “A proposta não é contratar 7 pessoas apenas para bipagem. É estruturar uma equipe total de 8 colaboradores, fixa, treinada e multifuncional.”
+              * {MO_CONFIG.AVISO_CLT}
             </p>
           </div>
         </div>
@@ -264,7 +384,7 @@ export function LaborView() {
               </tr>
             </thead>
             <tbody>
-              {VISAO_POR_XPT.map((x, i) => (
+              {visaoPorXpt.map((x, i) => (
                 <tr key={i} className="border-b border-border">
                   <td className="px-5 py-3 font-medium">{x.xpt}</td>
                   <td className="px-5 py-3 text-center tabular-nums">{x.clts}</td>
@@ -274,9 +394,9 @@ export function LaborView() {
               ))}
               <tr className="font-bold bg-muted/50">
                 <td className="px-5 py-3">Total</td>
-                <td className="px-5 py-3 text-center">8</td>
-                <td className="px-5 py-3 text-center">1 / 7</td>
-                <td className="px-5 py-3 text-right tabular-nums">{brl(MO_STATS.custoTotalClt)}</td>
+                <td className="px-5 py-3 text-center">{stats.estruturaCltTotal}</td>
+                <td className="px-5 py-3 text-center">{premises.cltsJaContratados} / {stats.novasContratacoes}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{brl(stats.custoTotalClt)}</td>
               </tr>
             </tbody>
           </table>
