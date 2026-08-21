@@ -106,7 +106,7 @@ export function LaborView() {
                 cursor={{ fill: "transparent" }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload;
+                    const data = (payload[0] as any).payload;
                     return (
                       <div className="rounded-lg border border-border bg-popover p-2 text-xs shadow-md text-popover-foreground">
                         <p className="font-bold">{data.name}</p>
