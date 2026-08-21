@@ -1,4 +1,4 @@
-import { brl } from "../data";
+import { brl } from "./data";
 
 export interface MaodeObraStats {
   xptsNoEscopo: number;
