@@ -1,35 +1,34 @@
-# Plano de Evolução: JMRoutes Dashboard
+# Plano de Evolução: JMRoutes Dashboard (V2 - Ajustado)
 
 Implementação das novas áreas de "Mão de Obra" e "Visão Consolidada", mantendo a identidade visual da JM Transportes e expandindo a análise de savings.
 
 ## Alterações Propostas
 
 ### 1. Navegação e Estrutura Principal
-- Adição de abas no topo da página principal:
-  - **Savings Operacionais**: Dashboard atual (SSP15, SSP20, etc.).
-  - **Mão de Obra**: Nova área focada em estrutura CLT e Motoristas Amigos.
-  - **Visão Consolidada**: Resumo financeiro total.
-- Refatoração de `src/routes/index.tsx` para gerenciar o estado da aba ativa.
+- **Navegação**: Abas no topo controladas pelo query parameter `?view=`:
+  - `savings`: Savings Operacionais (Default).
+  - `mao-de-obra`: Gestão de mão de obra CLT.
+  - `consolidado`: Resumo mensal financeiro completo.
+- **Componentização**: Divisão em `SavingsView`, `LaborView` e `ConsolidatedView` para melhor manutenção.
 
-### 2. Nova Área: Mão de Obra
-- **KPI Cards**: 6 indicadores (XPTs, Estrutura CLT, Novas Contratações, Custo Total, Economia Motoristas, Impacto Líquido).
-- **Bloco de Premissas**: Accordion/recolhível detalhando os valores base do estudo.
-- **Gráfico Waterfall**: Representação visual do impacto (Custo CLT vs. Economia Motoristas).
-- **Tabelas Detalhadas**:
-  - Escala Semanal (Atual vs. Proposto).
-  - Comparativo financeiro de Motoristas Amigos.
-  - Detalhamento de custo CLT por colaborador e estrutura.
-  - Visão por base XPT (Embu, Franco, Ibiúna, Guarujá).
+### 2. Módulo de Mão de Obra (Base Mensal)
+- **Foco Mensal**: Não haverá anualização nesta seção.
+- **KPIs**: 6 cards destacando o Impacto Líquido de R$ 22.224/mês (Compensação de ~38%).
+- **Detalhamento**:
+  - Tabela de Escala Semanal (Heatmap).
+  - Tabela de Custos CLT (Total 8 CLTs: R$ 35.664).
+  - Waterfall de Impacto Líquido (Custo total vs Economia Motoristas).
+- **Aviso**: Exibição obrigatória sobre custo CLT preliminar.
 
-### 3. Visão Consolidada
-- Tabela resumida integrando o Saving Operacional anual projetado com o Impacto Líquido da Mão de Obra.
+### 3. Visão Consolidada (Base Mensal)
+- Conversão do Saving Semanal Operacional para base mensal: `savingSemanal × 52 / 12`.
+- Tooltip explicativo sobre a conversão mensal equivalente.
+- Resultado líquido final unificando ganhos de sistema e custos de estrutura fixa.
 
 ### 4. Componentes e Estilização
-- Uso de `Accordion` do Shadcn UI para as premissas.
-- Criação de componente Waterfall customizado com `Recharts`.
-- Manutenção rigorosa das cores: Navy Blue e Yellow.
+- Manutenção da identidade JM (Navy/Yellow).
+- Uso de Accordion para premissas e tooltips para fórmulas.
 
 ## Detalhes Técnicos
-- Persistência da aba ativa na URL (opcional, mas recomendado para navegação).
-- Atualização das projeções para 52 semanas conforme diretriz anterior.
-- Inclusão do aviso sobre custo CLT preliminar.
+- Persistência de estado na URL via TanStack Router.
+- Módulo `src/components/dashboard/labor-data.ts` como fonte única de verdade para premissas.

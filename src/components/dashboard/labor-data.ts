@@ -4,32 +4,49 @@ export interface MaodeObraStats {
   xptsNoEscopo: number;
   estruturaCltTotal: number;
   novasContratacoes: number;
+  custoUnitarioClt: number;
   custoTotalClt: number;
+  custoNovasContratacoes: number;
   economiaMotoristasAmigos: number;
   impactoLiquido: number;
   percentualCompensado: number;
 }
 
-export const MO_STATS: MaodeObraStats = {
-  xptsNoEscopo: 4,
-  estruturaCltTotal: 8,
-  novasContratacoes: 7,
-  custoTotalClt: 35664,
-  economiaMotoristasAmigos: 13440,
-  impactoLiquido: 22224,
-  percentualCompensado: 38,
+export const MO_CONFIG = {
+  PREMISSAS: [
+    "Mês simplificado: 30 dias",
+    "Motorista Amigo: R$ 60/dia",
+    "Faixa observada: R$ 50 a R$ 70/dia",
+    "2 CLTs por XPT",
+    "8 CLTs no total",
+    "1 CLT já contratado em Embu",
+    "7 novas contratações",
+    "Custo estimado por CLT: R$ 4.458/mês",
+  ],
+  AVISO_CLT: "Custo CLT preliminar, sujeito à validação da folha JM.",
+  VALORES: {
+    custoUnitarioClt: 4458,
+    qtdTotalClt: 8,
+    qtdJaContratado: 1,
+    qtdNovasContratacoes: 7,
+    motoristaAmigoDia: 60,
+    motoristasPorXptDia: 3,
+    diasMes: 30,
+    diasEscalaProposta: 17, // 4 dias/semana * 4.25 semanas aprox, ou conforme tabela (Qui-Dom = 4 dias)
+  }
 };
 
-export const MO_PREMISSAS = [
-  "Mês simplificado: 30 dias",
-  "Motorista Amigo: R$ 60/dia",
-  "Faixa observada: R$ 50 a R$ 70/dia",
-  "2 CLTs por XPT",
-  "8 CLTs no total",
-  "1 CLT já contratado em Embu",
-  "7 novas contratações",
-  "Custo estimado por CLT: R$ 4.458/mês",
-];
+export const MO_STATS: MaodeObraStats = {
+  xptsNoEscopo: 4,
+  estruturaCltTotal: MO_CONFIG.VALORES.qtdTotalClt,
+  novasContratacoes: MO_CONFIG.VALORES.qtdNovasContratacoes,
+  custoUnitarioClt: MO_CONFIG.VALORES.custoUnitarioClt,
+  custoTotalClt: 35664, // 8 * 4458
+  custoNovasContratacoes: 31206, // 7 * 4458
+  economiaMotoristasAmigos: 13440,
+  impactoLiquido: 22224, // 35664 - 13440
+  percentualCompensado: 38,
+};
 
 export const ESCALA_SEMANAL = [
   { dia: "Segunda", atual: 3, proposto: 0 },
@@ -47,15 +64,10 @@ export const COMPARATIVO_MOTORISTAS = [
   { cenario: "Economia", porXpt: 3360, total4Xpts: 13440, isSaving: true },
 ];
 
-export const CUSTO_CLT_DETALHE = [
-  { ref: "Por colaborador", qtd: 1, custo: 4458 },
-  { ref: "Estrutura total", qtd: 8, custo: 35664 },
-  { ref: "Composição", qtd: "1 contratado + 7 novos", custo: 0, showDash: true },
-];
-
 export const VISAO_POR_XPT = [
   { xpt: "Embu", clts: 2, contratado: 1, novos: 1, custo: 8916 },
   { xpt: "Franco da Rocha", clts: 2, contratado: 0, novos: 2, custo: 8916 },
   { xpt: "Ibiúna", clts: 2, contratado: 0, novos: 2, custo: 8916 },
   { xpt: "Guarujá", clts: 2, contratado: 0, novos: 2, custo: 8916 },
 ];
+
