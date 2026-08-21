@@ -1,16 +1,5 @@
 import { brl } from "./data";
-
-export interface MaodeObraStats {
-  xptsNoEscopo: number;
-  estruturaCltTotal: number;
-  novasContratacoes: number;
-  custoUnitarioClt: number;
-  custoTotalClt: number;
-  custoNovasContratacoes: number;
-  economiaMotoristasAmigos: number;
-  impactoLiquido: number;
-  percentualCompensado: number;
-}
+import { useState, useEffect } from "react";
 
 export const MO_CONFIG = {
   PREMISSAS: [
@@ -63,13 +52,13 @@ export const calculateLaborStats = (p: LaborPremises) => {
   const percentualCompensacao = custoCltTotal > 0 ? (economiaMotoristas / custoCltTotal) * 100 : 0;
 
   return {
-    totalClts,
+    xptsNoEscopo: p.quantidadeXpts,
+    estruturaCltTotal: totalClts,
     novasContratacoes,
-    custoCltTotal,
+    custoUnitarioClt: p.custoMensalClt,
+    custoTotalClt,
     custoNovasContratacoes,
-    custoMotoristasAtual,
-    custoMotoristasProposto,
-    economiaMotoristas,
+    economiaMotoristasAmigos: economiaMotoristas,
     impactoLiquido,
     percentualCompensacao,
   };
@@ -85,10 +74,30 @@ export const ESCALA_SEMANAL = [
   { dia: "Domingo", atual: 3, proposto: 2 },
 ];
 
+export const getComparativoMotoristas = (p: LaborPremises) => [
+  { cenario: `Atual: ${p.motoristasAtuais} × R$ ${p.valorDiario} × ${p.diasAtuais} dias`, porXpt: p.motoristasAtuais * p.valorDiario * p.diasAtuais, total4Xpts: p.quantidadeXpts * p.motoristasAtuais * p.valorDiario * p.diasAtuais },
+  { cenario: `Proposto: ${p.motoristasPropostos} × R$ ${p.valorDiario} × ${p.diasPropostos} dias`, porXpt: p.motoristasPropostos * p.valorDiario * p.diasPropostos, total4Xpts: p.quantidadeXpts * p.motoristasPropostos * p.valorDiario * p.diasPropostos },
+  { cenario: "Economia", porXpt: (p.motoristasAtuais * p.valorDiario * p.diasAtuais) - (p.motoristasPropostos * p.valorDiario * p.diasPropostos), total4Xpts: (p.quantidadeXpts * p.motoristasAtuais * p.valorDiario * p.diasAtuais) - (p.quantidadeXpts * p.motoristasPropostos * p.valorDiario * p.diasPropostos), isSaving: true },
+];
+
+export const getVisaoPorXpt = (p: LaborPremises) => {
+  const custoPorXpt = p.cltsPorXpt * p.custoMensalClt;
+  const contratadoPorXpt = Math.min(p.cltsJaContratados, p.cltsPorXpt);
+  const novosPorXpt = Math.max(p.cltsPorXpt - contratadoPorXpt, 0);
+  
+  return Array.from({ length: p.quantidadeXpts }).map((_, i) => ({
+    xpt: ["Embu", "Franco da Rocha", "Ibiúna", "Guarujá"][i] || `Base ${i + 1}`,
+    clts: p.cltsPorXpt,
+    contratado: contratadoPorXpt,
+    novos: novosPorXpt,
+    custo: custoPorXpt,
+  }));
+};
+
 export const getConsolidado = (savingSemanal: number, impactoMaoDeObra: number) => {
   const savingMensal = (savingSemanal * 52) / 12;
   const resultadoLiquido = savingMensal - impactoMaoDeObra;
-  const percentualConsumido = (impactoMaoDeObra / savingMensal) * 100;
+  const percentualConsumido = savingMensal > 0 ? (impactoMaoDeObra / savingMensal) * 100 : 0;
 
   return {
     savingMensal,
