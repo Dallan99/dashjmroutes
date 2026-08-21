@@ -107,8 +107,7 @@ export function LaborView() {
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
-                    return (
-                      <div className="rounded-lg border border-border bg-popover p-2 text-xs shadow-md">
+                    return (active && payload && payload.length) ? (
                         <p className="font-bold">{data.name}</p>
                         <p>{brl(Math.abs(data.value))}</p>
                       </div>
