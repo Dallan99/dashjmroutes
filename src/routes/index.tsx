@@ -15,8 +15,6 @@ const dashboardSearchSchema = z.object({
   eficacia: z.number().optional(),
 });
 
-type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
-
 export const Route = createFileRoute("/")({
   validateSearch: (search) => dashboardSearchSchema.parse(search),
   head: () => ({
@@ -38,7 +36,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/" }) as DashboardSearch;
+  const search = useSearch({ from: "/" });
   const view = search.view || "savings";
 
   const criticas = BASES.filter((b) => !b.comJMRoutes);
@@ -59,25 +57,20 @@ function Dashboard() {
   // Sync state to URL
   useEffect(() => {
     navigate({
-      search: (prev) => {
-        const next = { ...prev };
-        next.view = view;
-        next.bases = selecionadas.join(",");
-        next.eficacia = eficacia;
-        return next;
-      },
+      search: (prev) => ({
+        ...prev,
+        view,
+        bases: selecionadas.join(","),
+        eficacia,
+      }),
       replace: true,
-    });
+    } as any);
   }, [selecionadas, eficacia, view, navigate]);
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
     navigate({
-      search: (prev) => {
-        const next = { ...prev };
-        next.view = newView;
-        return next;
-      },
-    });
+      search: (prev) => ({ ...prev, view: newView }),
+    } as any);
   };
 
   const currentSavingSemanal = () => {
