@@ -99,6 +99,63 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     [itensFiltrados, regrasAtivas],
   );
 
+  const kpisSavings = useMemo(() => {
+    const normalizarCategoria = (categoria: string) =>
+      categoria.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+
+    const totalBases = new Set(
+      itensFiltrados
+        .map((item) => item.base?.trim())
+        .filter((base): base is string => Boolean(base)),
+    ).size;
+    const valorTotal = itensFiltrados.reduce(
+      (total, item) =>
+        typeof item.amount === "number" && Number.isFinite(item.amount)
+          ? total + item.amount
+          : total,
+      0,
+    );
+    const semRegra = gruposClassificacao.find(
+      (grupo) => grupo.key === "sem_classificacao_regra",
+    );
+    const registrosSemRegra = semRegra?.items_count ?? 0;
+    const registrosClassificados = itensFiltrados.length - registrosSemRegra;
+    const gruposPorCategoria = new Map(
+      gruposClassificacao
+        .filter((grupo) => grupo.key !== "sem_classificacao_regra")
+        .map((grupo) => [normalizarCategoria(grupo.category), grupo]),
+    );
+    const categoriasComRegraAtiva = new Set(
+      regrasAtivas.map((regra) => normalizarCategoria(regra.category)),
+    );
+    const categoriasFinanceiras = [
+      { category: "Perda", icon: TrendingUp, tone: "loss" },
+      { category: "Valor evitado", icon: Wallet, tone: "highlight" },
+      { category: "Recuperado", icon: Check, tone: "gain" },
+      { category: "Pendência", icon: Clock, tone: "neutral" },
+    ] as const;
+
+    return {
+      totalBases,
+      valorTotal,
+      registrosClassificados,
+      registrosSemRegra,
+      categoriasFinanceiras: categoriasFinanceiras
+        .filter(({ category }) => categoriasComRegraAtiva.has(normalizarCategoria(category)))
+        .map(({ category, icon, tone }) => {
+          const grupo = gruposPorCategoria.get(normalizarCategoria(category));
+          return {
+            id: `categoria-${normalizarCategoria(category)}`,
+            label: category,
+            value: brl(grupo?.amount_total ?? 0),
+            hint: `${grupo?.items_count ?? 0} registro(s) classificado(s)`,
+            icon,
+            tone,
+          };
+        }),
+    };
+  }, [gruposClassificacao, itensFiltrados, regrasAtivas]);
+
   const fator = eficacia / 100;
   const linhas = useMemo(() => {
     const totais = new Map<string, number>();
@@ -294,57 +351,57 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {(
-          [
-            {
-              id: "perda-atual",
-              label: "Perda semanal atual",
-              value: brl(totalAtual),
-              hint: `${itensFiltrados.length} registro(s) da semana selecionada`,
-              icon: TrendingUp,
-              tone: "loss",
-            },
-            {
-              id: "perda-projetada",
-              label: "Perda semanal projetada",
-              value: brl(totalProjetado),
-              hint: `Piso de referência: ${brl(PISO_JMROUTES)} / base`, 
-              icon: TrendingDown,
-              tone: "gain",
-            },
-            {
-              id: "saving",
-              label: "Saving semanal",
-              value: brl(economiaSemanal),
-              hint: `Redução de ${reducaoPct.toFixed(1)}% das perdas`,
-              icon: Wallet,
-              tone: "highlight",
-            },
-            {
-              id: "escopo",
-              label: "Bases no escopo",
-              value: `${criticas.filter((base) => selecionadas.includes(base.id)).length} de ${criticas.length}`,
-              hint: "Bases da semana no escopo da simulação",
-              icon: CircleCheck,
-              tone: "neutral",
-            },
-          ] as const
-        ).map((kpi) => (
-          <Link
+        {[
+          {
+            id: "total-registros",
+            label: "Total de registros",
+            value: `${itensFiltrados.length}`,
+            hint: "Registros da semana e base selecionadas",
+            icon: FileText,
+            tone: "neutral",
+          },
+          {
+            id: "total-bases",
+            label: "Total de bases",
+            value: `${kpisSavings.totalBases}`,
+            hint: "Bases identificadas no filtro atual",
+            icon: CircleCheck,
+            tone: "neutral",
+          },
+          {
+            id: "valor-total",
+            label: "Valor total",
+            value: brl(kpisSavings.valorTotal),
+            hint: "Soma apenas de valores válidos",
+            icon: Wallet,
+            tone: "highlight",
+          },
+          {
+            id: "registros-classificados",
+            label: "Registros classificados",
+            value: `${kpisSavings.registrosClassificados}`,
+            hint: "Associados a uma regra ativa",
+            icon: Check,
+            tone: "gain",
+          },
+          {
+            id: "registros-sem-regra",
+            label: "Registros sem regra",
+            value: `${kpisSavings.registrosSemRegra}`,
+            hint: "Sem classificação por regra ativa",
+            icon: Clock,
+            tone: "neutral",
+          },
+          ...kpisSavings.categoriasFinanceiras,
+        ].map((kpi) => (
+          <KpiCard
             key={kpi.id}
-            to="/metrica/$metricaId"
-            params={{ metricaId: kpi.id }}
-            search={{ eficacia, bases: selecionadas.join(",") }}
-            className="rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <KpiCard
-              label={kpi.label}
-              value={kpi.value}
-              hint={kpi.hint}
-              icon={kpi.icon}
-              tone={kpi.tone}
-            />
-          </Link>
+            label={kpi.label}
+            value={kpi.value}
+            hint={kpi.hint}
+            icon={kpi.icon}
+            tone={kpi.tone}
+          />
         ))}
       </section>
 

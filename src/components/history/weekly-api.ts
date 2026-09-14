@@ -179,7 +179,9 @@ export function groupWeeklyItemsByActiveClassification(
 
     group.items.push(item);
     group.items_count += 1;
-    group.amount_total += Number.isFinite(Number(item.amount)) ? Number(item.amount) : 0;
+    if (typeof item.amount === "number" && Number.isFinite(item.amount)) {
+      group.amount_total += item.amount;
+    }
     groups.set(key, group);
   }
 
