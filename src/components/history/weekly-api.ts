@@ -60,6 +60,10 @@ export function normalizarBase(base: string | null | undefined) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 }
 
+function normalizarClassificacao(classification: string) {
+  return classification.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+}
+
 /**
  * Lista exclusivamente as importações semanais concluídas, da mais recente
  * para a mais antiga. As contagens de itens e bases são derivadas de weekly_items.
@@ -199,29 +203,45 @@ export function groupWeeklyItemsByActiveClassification(
   items: WeeklyItem[],
   activeRules: ClassificationRule[],
 ): WeeklyItemsClassificationGroup[] {
-  const rulesByClassification = new Map(
-    activeRules
-      .filter((rule) => rule.active)
-      .map((rule) => [
-        rule.classification.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR"),
-        rule.category.trim(),
-      ]),
+  const rulesByClassification = new Map<string, ClassificationRule[]>();
+
+  for (const rule of activeRules.filter((rule) => rule.active)) {
+    const classificationKey = normalizarClassificacao(rule.classification);
+    const rules = rulesByClassification.get(classificationKey) ?? [];
+    rules.push(rule);
+    rulesByClassification.set(classificationKey, rules);
+  }
+
+  const classificacoesAmbiguas = new Set(
+    Array.from(rulesByClassification.entries())
+      .filter(([, rules]) => rules.length > 1)
+      .map(([classification]) => classification),
   );
+
+  if (classificacoesAmbiguas.size > 0) {
+    const regrasAmbiguas = Array.from(classificacoesAmbiguas, (classification) => ({
+      classification,
+      ruleIds: (rulesByClassification.get(classification) ?? []).map((rule) => rule.id),
+    }));
+    console.warn("[Savings] Foram encontradas regras ativas duplicadas para a mesma classificação.", regrasAmbiguas);
+  }
 
   const groups = new Map<string, WeeklyItemsClassificationGroup>();
 
   for (const item of items) {
     const classificationKey = item.classification
-      ?.trim()
-      .replace(/\s+/g, " ")
-      .toLocaleUpperCase("pt-BR");
-    const category = classificationKey ? rulesByClassification.get(classificationKey) : undefined;
-    const key = category
-      ? `categoria:${category.toLocaleUpperCase("pt-BR")}`
-      : "sem_classificacao_regra";
+      ? normalizarClassificacao(item.classification)
+      : undefined;
+    const rules = classificationKey ? rulesByClassification.get(classificationKey) : undefined;
+    const category = rules?.length === 1 ? rules[0]?.category.trim() : undefined;
+    const key = classificationKey && classificacoesAmbiguas.has(classificationKey)
+      ? "regra_ambigua"
+      : category
+        ? `categoria:${category.toLocaleUpperCase("pt-BR")}`
+        : "sem_classificacao_regra";
     const group = groups.get(key) ?? {
       key,
-      category: category || "Sem classificação por regra",
+      category: key === "regra_ambigua" ? "Regra ambígua" : category || "Sem classificação por regra",
       items: [],
       items_count: 0,
       amount_total: 0,
@@ -236,8 +256,8 @@ export function groupWeeklyItemsByActiveClassification(
   }
 
   return Array.from(groups.values()).sort((first, second) => {
-    if (first.key === "sem_classificacao_regra") return 1;
-    if (second.key === "sem_classificacao_regra") return -1;
+    if (first.key === "sem_classificacao_regra" || first.key === "regra_ambigua") return 1;
+    if (second.key === "sem_classificacao_regra" || second.key === "regra_ambigua") return -1;
     return first.category.localeCompare(second.category, "pt-BR");
   });
 }

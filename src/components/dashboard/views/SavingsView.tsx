@@ -227,10 +227,12 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           : total,
       0,
     );
-    const semRegra = gruposClassificacao.find(
-      (grupo) => grupo.key === "sem_classificacao_regra",
-    );
-    const registrosSemRegra = semRegra?.items_count ?? 0;
+    const registrosSemRegra = gruposClassificacao
+      .filter(
+        (grupo) =>
+          grupo.key === "sem_classificacao_regra" || grupo.key === "regra_ambigua",
+      )
+      .reduce((total, grupo) => total + grupo.items_count, 0);
     const registrosClassificados = itensFiltrados.length - registrosSemRegra;
     const gruposPorCategoria = new Map(
       gruposClassificacao
@@ -536,7 +538,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             id: "registros-sem-regra",
             label: "Registros sem regra",
             value: `${kpisSavings.registrosSemRegra}`,
-            hint: "Sem classificação por regra ativa",
+            hint: "Sem regra válida ou com regra ambígua",
             icon: Clock,
             tone: "neutral",
           },
