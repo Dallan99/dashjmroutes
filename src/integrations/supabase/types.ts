@@ -375,7 +375,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      concluir_importacao_semanal: {
+        Args: {
+          import_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
