@@ -56,12 +56,27 @@ export type WeeklyItemsClassificationGroup = {
   amount_total: number;
 };
 
+export type WeeklyClassificationSurvey = {
+  classification: string | null;
+  records_count: number;
+  weeks_count: number;
+  bases_count: number;
+  has_active_rule: boolean;
+  active_rules_count: number;
+  category: string | null;
+};
+
 export function normalizarBase(base: string | null | undefined) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 }
 
-function normalizarClassificacao(classification: string) {
-  return classification.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+/**
+ * Chave técnica única para associar classificações importadas às regras.
+ * O texto salvo e exibido permanece inalterado; a normalização é usada
+ * exclusivamente para comparação sem diferença de espaços nas pontas ou caixa.
+ */
+export function normalizarClassificacao(classification: string | null | undefined) {
+  return classification?.trim().toLocaleUpperCase("pt-BR") ?? "";
 }
 
 /**
@@ -152,6 +167,95 @@ export function useWeeklyItemsForImports(importIds: string[]) {
 
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+/**
+ * Levanta as classificações distintas preservando exatamente o texto importado.
+ * A normalização é aplicada apenas no vínculo técnico com classification_rules.
+ */
+export function useWeeklyClassificationsSurvey() {
+  return useQuery({
+    queryKey: ["weekly_items", "classification-survey"],
+    queryFn: async (): Promise<WeeklyClassificationSurvey[]> => {
+      const { data: imports, error: importsError } = await supabase
+        .from("weekly_imports")
+        .select("id")
+        .eq("status", "completed");
+      if (importsError) throw importsError;
+
+      const importIds = (imports ?? []).map((item) => item.id);
+      if (importIds.length === 0) return [];
+
+      const [{ data: items, error: itemsError }, { data: rules, error: rulesError }] =
+        await Promise.all([
+          supabase
+            .from("weekly_items")
+            .select("import_id, base, classification")
+            .in("import_id", importIds),
+          supabase
+            .from("classification_rules")
+            .select("id, classification, category, active, created_at")
+            .eq("active", true),
+        ]);
+
+      if (itemsError) throw itemsError;
+      if (rulesError) throw rulesError;
+
+      const activeRulesByClassification = new Map<string, ClassificationRule[]>();
+      for (const rule of rules ?? []) {
+        const key = normalizarClassificacao(rule.classification);
+        const current = activeRulesByClassification.get(key) ?? [];
+        current.push(rule);
+        activeRulesByClassification.set(key, current);
+      }
+
+      const surveyByOriginalClassification = new Map<
+        string,
+        {
+          classification: string | null;
+          records_count: number;
+          importIds: Set<string>;
+          bases: Set<string>;
+        }
+      >();
+
+      for (const item of items ?? []) {
+        const key = item.classification === null ? "__sem_classificacao__" : `texto:${item.classification}`;
+        const current = surveyByOriginalClassification.get(key) ?? {
+          classification: item.classification,
+          records_count: 0,
+          importIds: new Set<string>(),
+          bases: new Set<string>(),
+        };
+
+        current.records_count += 1;
+        current.importIds.add(item.import_id);
+        const base = normalizarBase(item.base);
+        if (base) current.bases.add(base);
+        surveyByOriginalClassification.set(key, current);
+      }
+
+      return Array.from(surveyByOriginalClassification.values())
+        .map((entry) => {
+          const activeRules = activeRulesByClassification.get(
+            normalizarClassificacao(entry.classification),
+          ) ?? [];
+
+          return {
+            classification: entry.classification,
+            records_count: entry.records_count,
+            weeks_count: entry.importIds.size,
+            bases_count: entry.bases.size,
+            has_active_rule: activeRules.length > 0,
+            active_rules_count: activeRules.length,
+            category: activeRules.length === 1 ? activeRules[0]?.category ?? null : null,
+          };
+        })
+        .sort((first, second) =>
+          (first.classification ?? "").localeCompare(second.classification ?? "", "pt-BR"),
+        );
     },
   });
 }
