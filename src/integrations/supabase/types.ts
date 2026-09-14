@@ -229,8 +229,11 @@ export type Database = {
           id: string
           imported_at: string | null
           imported_by: string | null
+          is_current: boolean
           mapping_json: Json | null
           status: string | null
+          superseded_at: string | null
+          superseded_by: string | null
           week_code: string
           week_number: number
           year: number
@@ -241,8 +244,11 @@ export type Database = {
           id?: string
           imported_at?: string | null
           imported_by?: string | null
+          is_current?: boolean
           mapping_json?: Json | null
           status?: string | null
+          superseded_at?: string | null
+          superseded_by?: string | null
           week_code: string
           week_number: number
           year: number
@@ -253,13 +259,24 @@ export type Database = {
           id?: string
           imported_at?: string | null
           imported_by?: string | null
+          is_current?: boolean
           mapping_json?: Json | null
           status?: string | null
+          superseded_at?: string | null
+          superseded_by?: string | null
           week_code?: string
           week_number?: number
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "weekly_imports_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "weekly_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_items: {
         Row: {

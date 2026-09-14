@@ -46,6 +46,7 @@ import {
   SAVINGS_SAUDE_CONFIG,
   useActiveClassificationRules,
   useWeeklyImports,
+  useWeeklyImportsHistory,
   useWeeklyItems,
   useWeeklyItemsForImports,
   useWeekNotes,
@@ -67,6 +68,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     isError: erroImportacoes,
     refetch: recarregarImportacoes,
   } = useWeeklyImports();
+  const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
   const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
   const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
@@ -772,8 +774,11 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Histórico de importações
+            Histórico técnico de versões
           </h2>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
+            Auditoria de todas as importações, incluindo versões substituídas e tentativas com falha.
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
@@ -783,19 +788,23 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                 <th className="px-5 py-3">Importada em</th>
                 <th className="px-5 py-3">Arquivo</th>
                 <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Versão</th>
                 <th className="px-5 py-3 text-right">Registros</th>
                 <th className="px-5 py-3 text-right">Bases</th>
               </tr>
             </thead>
             <tbody>
-              {importacoes.map((item) => (
+              {historicoImportacoes.map((item) => (
                 <tr
                   key={item.id}
                   className={cn(
-                    "cursor-pointer border-t border-border transition-colors hover:bg-muted/40",
-                    item.id === importacaoSelecionada && "bg-primary/5",
+                    "border-t border-border transition-colors hover:bg-muted/40",
+                    item.id === importacaoSelecionada && "cursor-pointer bg-primary/5",
+                    !item.is_current && "bg-muted/20 text-muted-foreground",
                   )}
-                  onClick={() => setImportacaoSelecionada(item.id)}
+                  onClick={() => {
+                    if (item.is_current && item.status === "completed") setImportacaoSelecionada(item.id);
+                  }}
                 >
                   <td className="px-5 py-3 font-semibold text-primary">{item.week_code}</td>
                   <td className="px-5 py-3 text-muted-foreground">{formatarDataImportacao(item.imported_at)}</td>
@@ -803,9 +812,28 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                     <span className="inline-flex items-center gap-2"><FileText className="size-4 text-muted-foreground" />{item.file_name}</span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                      <Check className="size-3.5" /> Concluída
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
+                        item.status === "completed"
+                          ? "border-success/40 bg-success/10 text-success"
+                          : item.status === "failed"
+                            ? "border-destructive/40 bg-destructive/10 text-destructive"
+                            : "border-border bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {item.status === "completed" ? <Check className="size-3.5" /> : null}
+                      {item.status === "completed" ? "Concluída" : item.status === "failed" ? "Falhou" : "Processando"}
                     </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    {item.is_current ? (
+                      <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Atual</span>
+                    ) : item.superseded_by || item.superseded_at ? (
+                      <span className="inline-flex rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">Substituída</span>
+                    ) : (
+                      <span className="text-xs font-medium text-muted-foreground">Não oficial</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-right font-semibold tabular-nums">{item.items_count}</td>
                   <td className="px-5 py-3 text-right font-semibold tabular-nums">{item.bases_count}</td>

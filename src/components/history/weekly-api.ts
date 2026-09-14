@@ -10,6 +10,9 @@ export type WeeklyImportSummary = {
   imported_at: string | null;
   file_name: string;
   status: string | null;
+  is_current: boolean;
+  superseded_by: string | null;
+  superseded_at: string | null;
   items_count: number;
   bases_count: number;
 };
@@ -133,17 +136,18 @@ export function normalizarClassificacao(classification: string | null | undefine
 }
 
 /**
- * Lista exclusivamente as importações semanais concluídas, da mais recente
+ * Lista exclusivamente as versões atuais concluídas, da mais recente
  * para a mais antiga. As contagens de itens e bases são derivadas de weekly_items.
  */
 export function useWeeklyImports() {
   return useQuery({
-    queryKey: ["weekly_imports", "completed"],
+    queryKey: ["weekly_imports", "completed", "current"],
     queryFn: async (): Promise<WeeklyImportSummary[]> => {
       const { data: imports, error: importsError } = await supabase
         .from("weekly_imports")
-        .select("id, week_code, year, week_number, imported_at, file_name, status")
+        .select("id, week_code, year, week_number, imported_at, file_name, status, is_current, superseded_by, superseded_at")
         .eq("status", "completed")
+        .eq("is_current", true)
         .order("year", { ascending: false })
         .order("week_number", { ascending: false });
 
@@ -176,6 +180,45 @@ export function useWeeklyImports() {
           items_count: totals?.items ?? 0,
           bases_count: totals?.bases.size ?? 0,
         };
+      });
+    },
+  });
+}
+
+/** Lista todas as versões para auditoria técnica, inclusive falhas e substituídas. */
+export function useWeeklyImportsHistory() {
+  return useQuery({
+    queryKey: ["weekly_imports", "history"],
+    queryFn: async (): Promise<WeeklyImportSummary[]> => {
+      const { data: imports, error: importsError } = await supabase
+        .from("weekly_imports")
+        .select("id, week_code, year, week_number, imported_at, file_name, status, is_current, superseded_by, superseded_at")
+        .order("year", { ascending: false })
+        .order("week_number", { ascending: false })
+        .order("imported_at", { ascending: false });
+
+      if (importsError) throw importsError;
+      if (!imports?.length) return [];
+
+      const importIds = imports.map((item) => item.id);
+      const { data: itemReferences, error: itemsError } = await supabase
+        .from("weekly_items")
+        .select("import_id, base")
+        .in("import_id", importIds);
+      if (itemsError) throw itemsError;
+
+      const totalsByImport = new Map<string, { items: number; bases: Set<string> }>();
+      for (const item of itemReferences ?? []) {
+        const totals = totalsByImport.get(item.import_id) ?? { items: 0, bases: new Set<string>() };
+        totals.items += 1;
+        const base = normalizarBase(item.base);
+        if (base) totals.bases.add(base);
+        totalsByImport.set(item.import_id, totals);
+      }
+
+      return imports.map((item) => {
+        const totals = totalsByImport.get(item.id);
+        return { ...item, items_count: totals?.items ?? 0, bases_count: totals?.bases.size ?? 0 };
       });
     },
   });
@@ -446,10 +489,18 @@ export function calcularSaudeOperacional(
     return { categoriaConfigurada: false, operacoes: [], mediaGeral: null };
   }
 
+  const importacoesPorSemana = new Map<string, WeeklyImportSummary>();
+  for (const importacao of importacoes.filter(
+    (item) => year === undefined || item.year === year,
+  )) {
+    const chaveSemana = `${importacao.year}-${importacao.week_number}`;
+    const existente = importacoesPorSemana.get(chaveSemana);
+    if (!existente || (importacao.imported_at ?? "") > (existente.imported_at ?? "")) {
+      importacoesPorSemana.set(chaveSemana, importacao);
+    }
+  }
   const importacoesConsideradas = new Map(
-    importacoes
-      .filter((importacao) => year === undefined || importacao.year === year)
-      .map((importacao) => [importacao.id, importacao]),
+    Array.from(importacoesPorSemana.values(), (importacao) => [importacao.id, importacao]),
   );
   const regrasPorClassificacao = new Map<string, ClassificationRule[]>();
 

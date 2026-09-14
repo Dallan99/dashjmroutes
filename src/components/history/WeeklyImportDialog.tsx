@@ -133,6 +133,8 @@ export function WeeklyImportDialog({
     setSalvando(true);
     setDuplicada(false);
     let importId: string | null = null;
+    let versoesAnterioresAtuais: string[] = [];
+    let versoesSubstituidas = false;
 
     try {
       const { data: existentes, error: erroDuplicidade } = await supabase
@@ -154,6 +156,7 @@ export function WeeklyImportDialog({
           file_name: arquivo.fileName,
           mapping_json: mapping as Json,
           status: "processing",
+          is_current: false,
           week_code: weekCode,
           week_number: numeroSemana,
           year: ano,
@@ -196,11 +199,36 @@ export function WeeklyImportDialog({
         if (erroItens) throw erroItens;
       }
 
+      const { data: anteriores, error: erroVersoesAnteriores } = await supabase
+        .from("weekly_imports")
+        .select("id")
+        .eq("year", ano)
+        .eq("week_number", numeroSemana)
+        .eq("status", "completed")
+        .eq("is_current", true)
+        .neq("id", importId);
+      if (erroVersoesAnteriores) throw erroVersoesAnteriores;
+
+      versoesAnterioresAtuais = (anteriores ?? []).map((item) => item.id);
+
       const { error: erroConclusao } = await supabase
         .from("weekly_imports")
-        .update({ status: "completed" })
+        .update({ status: "completed", is_current: true })
         .eq("id", importId);
       if (erroConclusao) throw erroConclusao;
+
+      if (versoesAnterioresAtuais.length > 0) {
+        const { error: erroSubstituicao } = await supabase
+          .from("weekly_imports")
+          .update({
+            is_current: false,
+            superseded_by: importId,
+            superseded_at: new Date().toISOString(),
+          })
+          .in("id", versoesAnterioresAtuais);
+        if (erroSubstituicao) throw erroSubstituicao;
+        versoesSubstituidas = true;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["weekly_imports"] });
       await queryClient.invalidateQueries({ queryKey: ["weekly_items"] });
@@ -209,8 +237,17 @@ export function WeeklyImportDialog({
       });
       fechar(false);
     } catch (error) {
+      if (versoesSubstituidas && versoesAnterioresAtuais.length > 0) {
+        await supabase
+          .from("weekly_imports")
+          .update({ is_current: true, superseded_by: null, superseded_at: null })
+          .in("id", versoesAnterioresAtuais);
+      }
       if (importId) {
-        await supabase.from("weekly_imports").update({ status: "failed" }).eq("id", importId);
+        await supabase
+          .from("weekly_imports")
+          .update({ status: "failed", is_current: false })
+          .eq("id", importId);
       }
       toast.error("Falha ao importar a semana", { description: mensagemErroImportacao(error) });
     } finally {
