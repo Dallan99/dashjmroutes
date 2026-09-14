@@ -4,6 +4,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   Cell,
   Legend,
   ResponsiveContainer,
@@ -39,6 +41,8 @@ import {
   useActiveClassificationRules,
   useWeeklyImports,
   useWeeklyItems,
+  useWeeklyItemsForImports,
+  useWeekNotes,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +66,10 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
   const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
   const { data: itensSemana = [], isLoading: carregandoItens } = useWeeklyItems(importacaoAtual?.id);
+  const { data: itensHistorico = [], isLoading: carregandoHistorico } = useWeeklyItemsForImports(
+    importacoes.map((importacao) => importacao.id),
+  );
+  const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
   const { data: regrasAtivas = [], isLoading: carregandoRegras } = useActiveClassificationRules();
 
   const basesSemana = useMemo(
@@ -97,6 +105,92 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   const gruposClassificacao = useMemo(
     () => groupWeeklyItemsByActiveClassification(itensFiltrados, regrasAtivas),
     [itensFiltrados, regrasAtivas],
+  );
+
+  const itensHistoricoFiltrados = useMemo(
+    () =>
+      itensHistorico.filter(
+        (item) =>
+          baseSelecionada === "__todas_as_bases__" || item.base?.trim() === baseSelecionada,
+      ),
+    [baseSelecionada, itensHistorico],
+  );
+
+  const evolucaoSemanal = useMemo(() => {
+    const totaisPorImportacao = new Map(
+      importacoes.map((importacao) => [
+        importacao.id,
+        { semana: importacao.week_code, year: importacao.year, week: importacao.week_number, registros: 0, valor: 0 },
+      ]),
+    );
+
+    for (const item of itensHistoricoFiltrados) {
+      const total = totaisPorImportacao.get(item.import_id);
+      if (!total) continue;
+      total.registros += 1;
+      if (typeof item.amount === "number" && Number.isFinite(item.amount)) total.valor += item.amount;
+    }
+
+    return Array.from(totaisPorImportacao.values()).sort(
+      (primeira, segunda) => primeira.year - segunda.year || primeira.week - segunda.week,
+    );
+  }, [importacoes, itensHistoricoFiltrados]);
+
+  const importacaoAnterior = useMemo(() => {
+    if (!importacaoAtual) return null;
+    const ordenadas = importacoes
+      .slice()
+      .sort((primeira, segunda) => primeira.year - second.year || primeira.week_number - second.week_number);
+    const indiceAtual = ordenadas.findIndex((item) => item.id === importacaoAtual.id);
+    return indiceAtual > 0 ? ordenadas[indiceAtual - 1] ?? null : null;
+  }, [importacaoAtual, importacoes]);
+
+  const comparativoSemanal = useMemo(() => {
+    const itensAtuais = itensHistoricoFiltrados.filter((item) => item.import_id === importacaoAtual?.id);
+    const itensAnteriores = itensHistoricoFiltrados.filter((item) => item.import_id === importacaoAnterior?.id);
+    const resumir = (itens: typeof itensSemana) => ({
+      registros: itens.length,
+      valor: itens.reduce(
+        (total, item) => total + (typeof item.amount === "number" && Number.isFinite(item.amount) ? item.amount : 0),
+        0,
+      ),
+    });
+
+    const porBase = new Map<string, { base: string; atual: number; anterior: number }>();
+    for (const [tipo, itens] of [["atual", itensAtuais], ["anterior", itensAnteriores]] as const) {
+      for (const item of itens) {
+        const base = item.base?.trim() || "Sem base";
+        const total = porBase.get(base) ?? { base, atual: 0, anterior: 0 };
+        total[tipo] += 1;
+        porBase.set(base, total);
+      }
+    }
+
+    const porClassificacao = new Map<string, { classificacao: string; atual: number; anterior: number }>();
+    for (const [tipo, itens] of [["atual", itensAtuais], ["anterior", itensAnteriores]] as const) {
+      for (const grupo of groupWeeklyItemsByActiveClassification(itens, regrasAtivas)) {
+        const total = porClassificacao.get(grupo.category) ?? { classificacao: grupo.category, atual: 0, anterior: 0 };
+        total[tipo] += grupo.items_count;
+        porClassificacao.set(grupo.category, total);
+      }
+    }
+
+    return {
+      atual: resumir(itensAtuais),
+      anterior: resumir(itensAnteriores),
+      porBase: Array.from(porBase.values()).sort((a, b) => b.atual - a.atual || b.anterior - a.anterior),
+      porClassificacao: Array.from(porClassificacao.values()).sort((a, b) => b.atual - a.atual || b.anterior - a.anterior),
+    };
+  }, [importacaoAnterior, importacaoAtual, itensHistoricoFiltrados, regrasAtivas]);
+
+  const observacoesVisiveis = useMemo(
+    () =>
+      observacoesSemana.filter(
+        (observacao) =>
+          observacao.base === null ||
+          (baseSelecionada !== "__todas_as_bases__" && observacao.base?.trim() === baseSelecionada),
+      ),
+    [baseSelecionada, observacoesSemana],
   );
 
   const kpisSavings = useMemo(() => {
@@ -300,7 +394,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
-      {carregandoItens || carregandoRegras ? (
+      {carregandoItens || carregandoHistorico || carregandoRegras ? (
         <p className="text-sm font-medium text-muted-foreground">
           Carregando itens e regras de classificação da semana selecionada…
         </p>
@@ -405,6 +499,75 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         ))}
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Evolução real por semana</h2>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">Valores válidos das importações concluídas.</p>
+            </div>
+            <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais</span>
+          </div>
+          <div className="mt-5 h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={evolucaoSemanal}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="semana" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+                <YAxis tickFormatter={(valor: number) => brlCurto(valor)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} width={64} />
+                <Tooltip formatter={(valor: number) => brl(valor)} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "0.6rem", fontSize: 12 }} />
+                <Line type="monotone" dataKey="valor" name="Valor" stroke="var(--chart-1)" strokeWidth={3} dot />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Quantidade por classificação</h2>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">Categorias definidas exclusivamente por regras ativas.</p>
+            </div>
+            <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais</span>
+          </div>
+          <div className="mt-5 h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={gruposClassificacao.map((grupo) => ({ classificacao: grupo.category, quantidade: grupo.items_count }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="classificacao" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} width={36} />
+                <Tooltip formatter={(valor: number) => [`${valor} registro(s)`, "Quantidade"]} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "0.6rem", fontSize: 12 }} />
+                <Bar dataKey="quantidade" name="Quantidade" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Comparação semanal real</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              {importacaoAnterior ? `${importacaoAtual?.week_code} comparada com ${importacaoAnterior.week_code}.` : "Não há uma semana anterior concluída disponível para comparação."}
+            </p>
+          </div>
+          <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais</span>
+        </div>
+        {importacaoAnterior ? (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-muted/40 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Registros</p><p className="mt-2 text-xl font-extrabold tabular-nums">{comparativoSemanal.atual.registros}</p><p className="text-sm font-medium text-muted-foreground">Anterior: {comparativoSemanal.anterior.registros}</p></div>
+              <div className="rounded-lg border border-border bg-muted/40 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Valor válido</p><p className="mt-2 text-xl font-extrabold tabular-nums">{brl(comparativoSemanal.atual.valor)}</p><p className="text-sm font-medium text-muted-foreground">Anterior: {brl(comparativoSemanal.anterior.valor)}</p></div>
+              <div className="rounded-lg border border-border bg-muted/40 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bases identificadas</p><p className="mt-2 text-xl font-extrabold tabular-nums">{comparativoSemanal.porBase.filter((item) => item.atual > 0).length}</p><p className="text-sm font-medium text-muted-foreground">Anterior: {comparativoSemanal.porBase.filter((item) => item.anterior > 0).length}</p></div>
+            </div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-3 py-2">Base</th><th className="px-3 py-2 text-right">Semana atual</th><th className="px-3 py-2 text-right">Anterior</th></tr></thead><tbody>{comparativoSemanal.porBase.map((item) => <tr key={item.base} className="border-t border-border"><td className="px-3 py-2 font-semibold">{item.base}</td><td className="px-3 py-2 text-right tabular-nums">{item.atual}</td><td className="px-3 py-2 text-right tabular-nums">{item.anterior}</td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-3 py-2">Classificação</th><th className="px-3 py-2 text-right">Semana atual</th><th className="px-3 py-2 text-right">Anterior</th></tr></thead><tbody>{comparativoSemanal.porClassificacao.map((item) => <tr key={item.classificacao} className="border-t border-border"><td className="px-3 py-2 font-semibold">{item.classificacao}</td><td className="px-3 py-2 text-right tabular-nums">{item.atual}</td><td className="px-3 py-2 text-right tabular-nums">{item.anterior}</td></tr>)}</tbody></table></div>
+            </div>
+          </>
+        ) : null}
+      </section>
+
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
@@ -449,6 +612,24 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Observações da semana</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Observações gerais e, quando uma base estiver filtrada, observações específicas dessa base.</p>
+          </div>
+          <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais</span>
+        </div>
+        <div className="mt-4 space-y-3">
+          {observacoesVisiveis.length > 0 ? observacoesVisiveis.map((observacao) => (
+            <div key={observacao.id} className="rounded-lg border border-border bg-muted/40 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{observacao.base?.trim() || "Observação geral"}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed">{observacao.note}</p>
+            </div>
+          )) : <p className="text-sm font-medium text-muted-foreground">Não há observações registradas para este filtro.</p>}
         </div>
       </section>
 

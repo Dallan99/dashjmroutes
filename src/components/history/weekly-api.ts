@@ -40,6 +40,14 @@ export type ClassificationRule = {
   created_at: string | null;
 };
 
+export type WeekNote = {
+  id: string;
+  import_id: string;
+  base: string | null;
+  note: string;
+  created_at: string | null;
+};
+
 export type WeeklyItemsClassificationGroup = {
   key: string;
   category: string;
@@ -115,6 +123,47 @@ export function useWeeklyItems(importId: string | null | undefined) {
         )
         .eq("import_id", importId)
         .order("event_date", { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+/** Consulta os itens reais de todas as importações concluídas informadas. */
+export function useWeeklyItemsForImports(importIds: string[]) {
+  return useQuery({
+    queryKey: ["weekly_items", "imports", importIds],
+    enabled: importIds.length > 0,
+    queryFn: async (): Promise<WeeklyItem[]> => {
+      if (!importIds.length) return [];
+
+      const { data, error } = await supabase
+        .from("weekly_items")
+        .select(
+          "id, import_id, base, service, package_id, route_id, driver, description, event_date, amount, operational_status, classification, decision, evidence_url, extra_data",
+        )
+        .in("import_id", importIds);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+/** Observações registradas para a importação semanal selecionada. */
+export function useWeekNotes(importId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["week_notes", importId],
+    enabled: Boolean(importId),
+    queryFn: async (): Promise<WeekNote[]> => {
+      if (!importId) return [];
+
+      const { data, error } = await supabase
+        .from("week_notes")
+        .select("id, import_id, base, note, created_at")
+        .eq("import_id", importId)
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
       return data ?? [];
