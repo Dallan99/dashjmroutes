@@ -72,7 +72,8 @@ export function useWeeklyImports() {
         .from("weekly_imports")
         .select("id, week_code, year, week_number, imported_at, file_name, status")
         .eq("status", "completed")
-        .order("imported_at", { ascending: false });
+        .order("year", { ascending: false })
+        .order("week_number", { ascending: false });
 
       if (importsError) throw importsError;
       if (!imports?.length) return [];

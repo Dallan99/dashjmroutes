@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertCircle,
   CalendarRange,
   Check,
   CircleCheck,
@@ -54,7 +55,12 @@ interface SavingsViewProps {
 }
 
 export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficacia }: SavingsViewProps) {
-  const { data: importacoes = [], isLoading: carregandoImportacoes } = useWeeklyImports();
+  const {
+    data: importacoes = [],
+    isLoading: carregandoImportacoes,
+    isError: erroImportacoes,
+    refetch: recarregarImportacoes,
+  } = useWeeklyImports();
   const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
   const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
 
@@ -65,12 +71,30 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   }, [importacaoSelecionada, importacoes]);
 
   const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
-  const { data: itensSemana = [], isLoading: carregandoItens } = useWeeklyItems(importacaoAtual?.id);
-  const { data: itensHistorico = [], isLoading: carregandoHistorico } = useWeeklyItemsForImports(
-    importacoes.map((importacao) => importacao.id),
-  );
-  const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
-  const { data: regrasAtivas = [], isLoading: carregandoRegras } = useActiveClassificationRules();
+  const {
+    data: itensSemana = [],
+    isLoading: carregandoItens,
+    isError: erroItens,
+    refetch: recarregarItens,
+  } = useWeeklyItems(importacaoAtual?.id);
+  const {
+    data: itensHistorico = [],
+    isLoading: carregandoHistorico,
+    isError: erroHistorico,
+    refetch: recarregarHistorico,
+  } = useWeeklyItemsForImports(importacoes.map((importacao) => importacao.id));
+  const {
+    data: observacoesSemana = [],
+    isLoading: carregandoObservacoes,
+    isError: erroObservacoes,
+    refetch: recarregarObservacoes,
+  } = useWeekNotes(importacaoAtual?.id);
+  const {
+    data: regrasAtivas = [],
+    isLoading: carregandoRegras,
+    isError: erroRegras,
+    refetch: recarregarRegras,
+  } = useActiveClassificationRules();
 
   const basesSemana = useMemo(
     () =>
@@ -138,13 +162,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
   const importacaoAnterior = useMemo(() => {
     if (!importacaoAtual) return null;
-    const ordenadas = importacoes
-      .slice()
-      .sort((primeira, segunda) =>
-        primeira.year - segunda.year || primeira.week_number - segunda.week_number,
-      );
-    const indiceAtual = ordenadas.findIndex((item) => item.id === importacaoAtual.id);
-    return indiceAtual > 0 ? ordenadas[indiceAtual - 1] ?? null : null;
+    const indiceAtual = importacoes.findIndex((item) => item.id === importacaoAtual.id);
+    return indiceAtual >= 0 ? importacoes[indiceAtual + 1] ?? null : null;
   }, [importacaoAtual, importacoes]);
 
   const comparativoSemanal = useMemo(() => {
@@ -305,6 +324,21 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     return <p className="text-sm font-medium text-muted-foreground">Carregando importações semanais…</p>;
   }
 
+  if (erroImportacoes) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 shadow-[var(--shadow-panel)]">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <div>
+            <h2 className="text-sm font-bold">Não foi possível carregar as importações semanais</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Tente novamente para consultar os dados reais do histórico.</p>
+            <button type="button" onClick={() => void recarregarImportacoes()} className="mt-4 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary">Tentar novamente</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (importacoes.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center shadow-[var(--shadow-panel)]">
@@ -314,6 +348,28 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </p>
         <div className="mt-5 flex justify-center">
           <ImportButton />
+        </div>
+      </div>
+    );
+  }
+
+  if (erroItens || erroHistorico || erroRegras || erroObservacoes) {
+    const tentarNovamente = () => {
+      if (erroItens) void recarregarItens();
+      if (erroHistorico) void recarregarHistorico();
+      if (erroRegras) void recarregarRegras();
+      if (erroObservacoes) void recarregarObservacoes();
+    };
+
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 shadow-[var(--shadow-panel)]">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <div>
+            <h2 className="text-sm font-bold">Não foi possível carregar todos os dados da semana</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Nenhum indicador é exibido até que os dados reais estejam disponíveis.</p>
+            <button type="button" onClick={tentarNovamente} className="mt-4 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary">Tentar novamente</button>
+          </div>
         </div>
       </div>
     );
@@ -374,10 +430,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             </h3>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {importacoes
-              .slice()
-              .reverse()
-              .map((item) => (
+            {importacoes.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -396,9 +449,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
-      {carregandoItens || carregandoHistorico || carregandoRegras ? (
+      {carregandoItens || carregandoHistorico || carregandoRegras || carregandoObservacoes ? (
         <p className="text-sm font-medium text-muted-foreground">
-          Carregando itens e regras de classificação da semana selecionada…
+          Carregando dados da semana selecionada…
         </p>
       ) : null}
 
