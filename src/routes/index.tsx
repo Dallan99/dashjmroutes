@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
-import logo from "@/assets/jmtd-logo.jpg.asset.json";
 import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
@@ -101,11 +100,12 @@ function Dashboard() {
       <header className="border-b border-border bg-[image:var(--gradient-hero)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <img
-              src={logo.url}
-              alt="Logotipo JM TD"
-              className="size-11 rounded-lg border border-border"
-            />
+            <div
+              className="flex size-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-sm font-extrabold tracking-tight text-secondary"
+              aria-label="JM TD"
+            >
+              JM
+            </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-secondary sm:text-2xl">
                 JMRoutes · Painel de Savings

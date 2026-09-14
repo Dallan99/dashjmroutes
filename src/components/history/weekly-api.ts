@@ -74,6 +74,34 @@ export type WeeklyClassificationSurvey = {
 /** Limite de negócio aplicado a cada operação em cada semana. */
 export const LIMITE_SAUDAVEL_OPERACAO = 1000;
 
+/** Catálogo oficial de operações exibido no Savings e no ranking. */
+export const OPERACOES_OFICIAIS = {
+  ESP15: "XPT Ibiúna",
+  ESP16: "XPT Guarujá",
+  ESP17: "XPT Embu Guaçu",
+  ESP18: "Atibaia",
+  SSC2: "Biguaçu",
+  SSP15: "Santos",
+  SSP17: "ABC",
+  SSP20: "Sorocaba",
+  SSP23: "Suzano",
+  SSP3: "Campinas",
+  SSP37: "Campinas",
+  SSP38: "Itupeva",
+  SSP45: "Itaquera",
+  SSP5: "Mega Barueri",
+  SSP6: "Mauá",
+} as const;
+
+export function nomeOperacao(base: string) {
+  return OPERACOES_OFICIAIS[base as keyof typeof OPERACOES_OFICIAIS] ?? null;
+}
+
+export function rotuloOperacao(base: string) {
+  const nome = nomeOperacao(base);
+  return nome ? `${base} · ${nome}` : base;
+}
+
 /** Quantidade mínima reservada para futura elegibilidade de premiação. */
 export const MIN_SEMANAS_RANKING = 1;
 

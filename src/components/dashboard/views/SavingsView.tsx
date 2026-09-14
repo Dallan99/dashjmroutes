@@ -37,7 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
-import { ImportButton } from "@/components/history/ImportDialog";
 import {
   calcularSaudeOperacional,
   groupWeeklyItemsByActiveClassification,
@@ -51,6 +50,7 @@ import {
   useWeeklyItemsForImports,
   useWeekNotes,
   normalizarBase,
+  rotuloOperacao,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
@@ -410,7 +410,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               Analise exclusivamente os dados reais da importação semanal selecionada.
             </p>
           </div>
-          <ImportButton />
+          <WeeklyImportButton />
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -439,7 +439,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                 <SelectItem value="__todas_as_bases__">Todas as bases</SelectItem>
                 {basesSemana.map((base) => (
                   <SelectItem key={base} value={base}>
-                    {base}
+                    {rotuloOperacao(base)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -665,7 +665,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                 <tbody>
                   {resumoSaude.operacoes.map((operacao) => (
                     <tr key={operacao.base} className="border-t border-border">
-                      <td className="px-4 py-3 font-semibold">{operacao.base}</td>
+                      <td className="px-4 py-3 font-semibold">{rotuloOperacao(operacao.base)}</td>
                       <td className="px-4 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td>
                       <td className={cn("px-4 py-3 text-right font-semibold tabular-nums", operacao.diferencaLimite <= 0 ? "text-success" : "text-destructive")}>
                         {operacao.diferencaLimite <= 0 ? "−" : "+"}{brl(Math.abs(operacao.diferencaLimite))}
@@ -696,7 +696,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-5 py-3">Posição</th><th className="px-5 py-3">Base</th><th className="px-5 py-3 text-right">Média semanal</th><th className="px-5 py-3 text-right">Semanas avaliadas</th><th className="px-5 py-3 text-right">Saudáveis</th><th className="px-5 py-3 text-right">Ofensoras</th><th className="px-5 py-3 text-right">Saúde</th><th className="px-5 py-3 text-right">Melhor semana</th><th className="px-5 py-3 text-right">Pior semana</th><th className="px-5 py-3 text-right">Status</th></tr></thead>
-              <tbody>{resumoSaude.operacoes.map((operacao, indice) => <tr key={operacao.base} className="border-t border-border transition-colors hover:bg-muted/40"><td className="px-5 py-3 font-extrabold text-primary">{indice + 1}º</td><td className="px-5 py-3 font-semibold">{operacao.base}</td><td className="px-5 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td><td className="px-5 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td><td className="px-5 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td><td className="px-5 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(2)}%</td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.melhorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.melhorSemana.weekCode}</span></td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.piorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.piorSemana.weekCode}</span></td><td className="px-5 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td></tr>)}</tbody>
+              <tbody>{resumoSaude.operacoes.map((operacao, indice) => <tr key={operacao.base} className="border-t border-border transition-colors hover:bg-muted/40"><td className="px-5 py-3 font-extrabold text-primary">{indice + 1}º</td><td className="px-5 py-3 font-semibold">{rotuloOperacao(operacao.base)}</td><td className="px-5 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td><td className="px-5 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td><td className="px-5 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td><td className="px-5 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(2)}%</td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.melhorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.melhorSemana.weekCode}</span></td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.piorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.piorSemana.weekCode}</span></td><td className="px-5 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td></tr>)}</tbody>
             </table>
           </div>
         </section>
