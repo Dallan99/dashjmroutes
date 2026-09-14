@@ -182,6 +182,7 @@ export function transformarLinhas(
 
   rows.forEach((row, i) => {
     if (Object.values(row).every((v) => v === null || v === "")) return;
+
     const mapeadas = new Set(Object.values(mapping).filter(Boolean) as string[]);
     const extra_data: Record<string, unknown> = {};
     Object.entries(row).forEach(([chave, valor]) => {
@@ -190,12 +191,21 @@ export function transformarLinhas(
       }
     });
 
-    const event_date = normalizarData(get(row, "event_date"));
-    if (get(row, "event_date") && !event_date) {
+    const dataOriginal = get(row, "event_date");
+    const valorOriginal = get(row, "amount") ?? get(row, "valor");
+    const event_date = normalizarData(dataOriginal);
+    const amount = parseValor(valorOriginal);
+
+    if (dataOriginal !== null && dataOriginal !== undefined && dataOriginal !== "" && !event_date) {
+      extra_data.data_do_evento_original = dataOriginal instanceof Date ? dataOriginal.toISOString() : dataOriginal;
       rejeitadas.push({ linha: i + 2, motivo: "Data do evento inválida" });
       return;
     }
-    const amount = parseValor(get(row, "amount") ?? get(row, "valor"));
+
+    if (valorOriginal !== null && valorOriginal !== undefined && valorOriginal !== "" && amount === null) {
+      extra_data.valor_original = valorOriginal instanceof Date ? valorOriginal.toISOString() : valorOriginal;
+    }
+
     validas.push({
       base: texto(get(row, "base")),
       service: texto(get(row, "service")),
