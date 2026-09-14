@@ -38,7 +38,9 @@ import {
 } from "@/components/ui/select";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
 import {
+  calcularSaudeOperacional,
   groupWeeklyItemsByActiveClassification,
+  SAVINGS_SAUDE_CONFIG,
   useActiveClassificationRules,
   useWeeklyImports,
   useWeeklyItems,
@@ -64,6 +66,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   } = useWeeklyImports();
   const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
   const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
+  const [anoRanking, setAnoRanking] = useState<number | null>(null);
 
   useEffect(() => {
     if (!importacaoSelecionada && importacoes.length > 0) {
@@ -72,6 +75,12 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   }, [importacaoSelecionada, importacoes]);
 
   const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
+
+  useEffect(() => {
+    if (importacaoAtual && anoRanking === null) {
+      setAnoRanking(importacaoAtual.year);
+    }
+  }, [anoRanking, importacaoAtual]);
   const {
     data: itensSemana = [],
     isLoading: carregandoItens,
@@ -270,6 +279,16 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     };
   }, [gruposClassificacao, itensFiltrados, regrasAtivas]);
 
+  const anosDisponiveis = useMemo(
+    () => Array.from(new Set(importacoes.map((importacao) => importacao.year))).sort((a, b) => b - a),
+    [importacoes],
+  );
+
+  const resumoSaude = useMemo(
+    () => calcularSaudeOperacional(importacoes, itensHistorico, regrasAtivas, anoRanking ?? undefined),
+    [anoRanking, importacoes, itensHistorico, regrasAtivas],
+  );
+
   const fator = eficacia / 100;
   const linhas = useMemo(() => {
     const totais = new Map<string, number>();
@@ -348,7 +367,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           Importe e conclua uma planilha semanal para visualizar os dados reais de savings por base.
         </p>
         <div className="mt-5 flex justify-center">
-          <ImportButton />
+          <WeeklyImportButton />
         </div>
       </div>
     );
@@ -560,6 +579,119 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         ))}
         </div>
       </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Saúde operacional — dados reais classificados
+            </p>
+            <h2 className="mt-3 text-lg font-bold">Média / Projetado e limite saudável</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              Projetado representa a média semanal histórica real por operação, sem valores financeiros simulados.
+            </p>
+          </div>
+          <div className="w-full sm:w-44">
+            <Label className="text-sm font-semibold">Ano do ranking</Label>
+            <Select
+              value={anoRanking === null ? "" : String(anoRanking)}
+              onValueChange={(valor) => setAnoRanking(Number(valor))}
+            >
+              <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o ano" /></SelectTrigger>
+              <SelectContent>
+                {anosDisponiveis.map((ano) => <SelectItem key={ano} value={String(ano)}>{`Ranking ${ano}`}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {!resumoSaude.categoriaConfigurada ? (
+          <div className="mt-5 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+            <div>
+              <p className="font-bold">Ranking aguardando classificação de negócio</p>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                Não há regra ativa na categoria “{SAVINGS_SAUDE_CONFIG.CATEGORIA_OFENSA}”. Por segurança, nenhuma perda ou ofensa foi inferida a partir dos registros importados.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <KpiCard
+                label="Média geral das operações"
+                value={resumoSaude.mediaGeral === null ? "Sem dados válidos" : brl(resumoSaude.mediaGeral)}
+                hint="Média entre as médias semanais das bases válidas"
+                icon={TrendingDown}
+                tone="highlight"
+              />
+              <KpiCard
+                label="Limite saudável"
+                value={brl(SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL)}
+                hint="Por operação por semana"
+                icon={Check}
+                tone="gain"
+              />
+              <KpiCard
+                label="Operações avaliadas"
+                value={`${resumoSaude.operacoes.length}`}
+                hint={`Mínimo futuro configurado: ${SAVINGS_SAUDE_CONFIG.MIN_SEMANAS_RANKING} semana(s)`}
+                icon={CalendarRange}
+                tone="neutral"
+              />
+            </div>
+
+            <div className="mt-5 overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[1060px] text-sm">
+                <thead className="bg-muted/50">
+                  <tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3">Base</th>
+                    <th className="px-4 py-3 text-right">Projetado / média</th>
+                    <th className="px-4 py-3 text-right">Semanas avaliadas</th>
+                    <th className="px-4 py-3 text-right">Saudáveis</th>
+                    <th className="px-4 py-3 text-right">Ofensoras</th>
+                    <th className="px-4 py-3 text-right">Saúde</th>
+                    <th className="px-4 py-3 text-right">Melhor semana</th>
+                    <th className="px-4 py-3 text-right">Pior semana</th>
+                    <th className="px-4 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumoSaude.operacoes.map((operacao) => (
+                    <tr key={operacao.base} className="border-t border-border">
+                      <td className="px-4 py-3 font-semibold">{operacao.base}</td>
+                      <td className="px-4 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(1)}%</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{brl(operacao.melhorSemana)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{brl(operacao.piorSemana)}</td>
+                      <td className="px-4 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {resumoSaude.operacoes.length === 0 ? <p className="px-5 py-8 text-center text-sm font-medium text-muted-foreground">Não há valores válidos da categoria de ofensa para o ano selecionado.</p> : null}
+            </div>
+          </>
+        )}
+      </section>
+
+      {resumoSaude.categoriaConfigurada ? (
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Ranking das Operações</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Ranking {anoRanking ?? "anual"} por menor média semanal de valor ofensor. Operações não são excluídas pelo mínimo de semanas configurado.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-5 py-3">Posição</th><th className="px-5 py-3">Base</th><th className="px-5 py-3 text-right">Média semanal</th><th className="px-5 py-3 text-right">Semanas avaliadas</th><th className="px-5 py-3 text-right">Saudáveis</th><th className="px-5 py-3 text-right">Ofensoras</th><th className="px-5 py-3 text-right">Saúde</th><th className="px-5 py-3 text-right">Status atual</th></tr></thead>
+              <tbody>{resumoSaude.operacoes.map((operacao, indice) => <tr key={operacao.base} className="border-t border-border transition-colors hover:bg-muted/40"><td className="px-5 py-3 font-extrabold text-primary">{indice + 1}º</td><td className="px-5 py-3 font-semibold">{operacao.base}</td><td className="px-5 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td><td className="px-5 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td><td className="px-5 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td><td className="px-5 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(1)}%</td><td className="px-5 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td></tr>)}</tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
@@ -866,8 +998,17 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       </section>
 
       <p className="pb-4 text-sm font-medium text-muted-foreground italic">
-        <Clock className="mr-1 inline size-4" /> Dados reais da semana {importacaoAtual?.week_code ?? "selecionada"}. A simulação utiliza a referência operacional da SSP34 e não altera os registros importados.
+        <Clock className="mr-1 inline size-4" /> Desempenho semanal usa a semana {importacaoAtual?.week_code ?? "selecionada"}. Média, saúde e ranking usam somente valores válidos da categoria “{SAVINGS_SAUDE_CONFIG.CATEGORIA_OFENSA}” vinculada por regra ativa nas importações concluídas. A simulação permanece separada e não altera os registros importados.
       </p>
     </div>
+  );
+}
+
+function StatusSaude({ status }: { status: "SAUDÁVEL" | "OFENSOR" }) {
+  const saudavel = status === "SAUDÁVEL";
+  return (
+    <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold", saudavel ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive")}>
+      {status}
+    </span>
   );
 }

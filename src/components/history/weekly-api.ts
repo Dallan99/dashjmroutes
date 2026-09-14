@@ -68,6 +68,31 @@ export type WeeklyClassificationSurvey = {
   category: string | null;
 };
 
+/** Parâmetros centralizados para a saúde operacional e o ranking histórico. */
+export const SAVINGS_SAUDE_CONFIG = {
+  LIMITE_SAUDAVEL: 1000,
+  MIN_SEMANAS_RANKING: 1,
+  CATEGORIA_OFENSA: "Perda",
+} as const;
+
+export type RankingOperacao = {
+  base: string;
+  mediaSemanal: number;
+  semanasAvaliadas: number;
+  semanasSaudaveis: number;
+  semanasOfensoras: number;
+  percentualSaude: number;
+  melhorSemana: number;
+  piorSemana: number;
+  statusAtual: "SAUDÁVEL" | "OFENSOR";
+};
+
+export type ResumoSaudeOperacional = {
+  categoriaConfigurada: boolean;
+  operacoes: RankingOperacao[];
+  mediaGeral: number | null;
+};
+
 export async function criarRegraClassificacao(params: {
   classification: string;
   category: string;
@@ -384,6 +409,111 @@ export function groupWeeklyItemsByActiveClassification(
     if (second.key === "sem_classificacao_regra" || second.key === "regra_ambigua") return -1;
     return first.category.localeCompare(second.category, "pt-BR");
   });
+}
+
+/**
+ * Consolida exclusivamente os valores reais da categoria de ofensa configurada.
+ * Cada base entra apenas nas semanas em que possui ao menos um valor financeiro
+ * válido naquela categoria; semanas ausentes nunca são convertidas em zero.
+ */
+export function calcularSaudeOperacional(
+  importacoes: WeeklyImportSummary[],
+  itens: WeeklyItem[],
+  regrasAtivas: ClassificationRule[],
+  year?: number,
+): ResumoSaudeOperacional {
+  const normalizarCategoria = (categoria: string) =>
+    categoria.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+  const categoriaOfensa = normalizarCategoria(SAVINGS_SAUDE_CONFIG.CATEGORIA_OFENSA);
+  const regrasDaCategoria = regrasAtivas.filter(
+    (regra) => regra.active && normalizarCategoria(regra.category) === categoriaOfensa,
+  );
+  const categoriaConfigurada = regrasDaCategoria.length > 0;
+
+  if (!categoriaConfigurada) {
+    return { categoriaConfigurada: false, operacoes: [], mediaGeral: null };
+  }
+
+  const importacoesConsideradas = new Map(
+    importacoes
+      .filter((importacao) => year === undefined || importacao.year === year)
+      .map((importacao) => [importacao.id, importacao]),
+  );
+  const regrasPorClassificacao = new Map<string, ClassificationRule[]>();
+
+  for (const regra of regrasDaCategoria) {
+    const chave = normalizarClassificacao(regra.classification);
+    const regras = regrasPorClassificacao.get(chave) ?? [];
+    regras.push(regra);
+    regrasPorClassificacao.set(chave, regras);
+  }
+
+  const valoresPorBaseESemana = new Map<string, Map<string, number>>();
+  for (const item of itens) {
+    if (!importacoesConsideradas.has(item.import_id)) continue;
+    if (typeof item.amount !== "number" || !Number.isFinite(item.amount)) continue;
+
+    const classificacao = normalizarClassificacao(item.classification);
+    const regras = regrasPorClassificacao.get(classificacao) ?? [];
+    if (regras.length !== 1) continue;
+
+    const base = normalizarBase(item.base);
+    if (!base) continue;
+
+    const semanasDaBase = valoresPorBaseESemana.get(base) ?? new Map<string, number>();
+    semanasDaBase.set(item.import_id, (semanasDaBase.get(item.import_id) ?? 0) + item.amount);
+    valoresPorBaseESemana.set(base, semanasDaBase);
+  }
+
+  const operacoes = Array.from(valoresPorBaseESemana, ([base, valoresPorSemana]) => {
+    const valores = Array.from(valoresPorSemana.values());
+    const semanasAvaliadas = valores.length;
+    const semanasSaudaveis = valores.filter(
+      (valor) => valor <= SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL,
+    ).length;
+    const semanasOfensoras = semanasAvaliadas - semanasSaudaveis;
+    const mediaSemanal = valores.reduce((total, valor) => total + valor, 0) / semanasAvaliadas;
+
+    return {
+      base,
+      mediaSemanal,
+      semanasAvaliadas,
+      semanasSaudaveis,
+      semanasOfensoras,
+      percentualSaude: (semanasSaudaveis / semanasAvaliadas) * 100,
+      melhorSemana: Math.min(...valores),
+      piorSemana: Math.max(...valores),
+      statusAtual:
+        mediaSemanal <= SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL ? "SAUDÁVEL" : "OFENSOR",
+    } satisfies RankingOperacao;
+  }).sort((primeira, segunda) => {
+    if (primeira.mediaSemanal !== segunda.mediaSemanal) {
+      return primeira.mediaSemanal - segunda.mediaSemanal;
+    }
+    if (primeira.semanasOfensoras !== segunda.semanasOfensoras) {
+      return primeira.semanasOfensoras - segunda.semanasOfensoras;
+    }
+    if (primeira.percentualSaude !== segunda.percentualSaude) {
+      return segunda.percentualSaude - primeira.percentualSaude;
+    }
+    if (primeira.piorSemana !== segunda.piorSemana) {
+      return primeira.piorSemana - segunda.piorSemana;
+    }
+    if (primeira.semanasAvaliadas !== segunda.semanasAvaliadas) {
+      return segunda.semanasAvaliadas - primeira.semanasAvaliadas;
+    }
+    return primeira.base.localeCompare(segunda.base, "pt-BR");
+  });
+
+  return {
+    categoriaConfigurada: true,
+    operacoes,
+    mediaGeral:
+      operacoes.length > 0
+        ? operacoes.reduce((total, operacao) => total + operacao.mediaSemanal, 0) /
+          operacoes.length
+        : null,
+  };
 }
 
 /** Regras de classificação ativas para agrupamentos do Savings. */
