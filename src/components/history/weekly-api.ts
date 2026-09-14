@@ -179,21 +179,11 @@ export function useWeeklyClassificationsSurvey() {
   return useQuery({
     queryKey: ["weekly_items", "classification-survey"],
     queryFn: async (): Promise<WeeklyClassificationSurvey[]> => {
-      const { data: imports, error: importsError } = await supabase
-        .from("weekly_imports")
-        .select("id")
-        .eq("status", "completed");
-      if (importsError) throw importsError;
-
-      const importIds = (imports ?? []).map((item) => item.id);
-      if (importIds.length === 0) return [];
-
       const [{ data: items, error: itemsError }, { data: rules, error: rulesError }] =
         await Promise.all([
           supabase
             .from("weekly_items")
-            .select("import_id, base, classification")
-            .in("import_id", importIds),
+            .select("import_id, base, classification"),
           supabase
             .from("classification_rules")
             .select("id, classification, category, active, created_at")
@@ -253,9 +243,15 @@ export function useWeeklyClassificationsSurvey() {
             category: activeRules.length === 1 ? activeRules[0]?.category ?? null : null,
           };
         })
-        .sort((first, second) =>
-          (first.classification ?? "").localeCompare(second.classification ?? "", "pt-BR"),
-        );
+        .sort((first, second) => {
+          if (first.has_active_rule !== second.has_active_rule) {
+            return first.has_active_rule ? 1 : -1;
+          }
+          if (first.records_count !== second.records_count) {
+            return second.records_count - first.records_count;
+          }
+          return (first.classification ?? "").localeCompare(second.classification ?? "", "pt-BR");
+        });
     },
   });
 }
