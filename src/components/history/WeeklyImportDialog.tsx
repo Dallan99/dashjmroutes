@@ -166,6 +166,9 @@ export function WeeklyImportDialog({
       if (erroDuplicidade) throw erroDuplicidade;
       if ((existentes ?? []).length > 0) {
         setDuplicada(true);
+        toast.warning("Arquivo já importado", {
+          description: "Este arquivo já possui uma importação concluída no histórico.",
+        });
         return;
       }
 
@@ -220,13 +223,60 @@ export function WeeklyImportDialog({
         if (erroItens) throw erroItens;
       }
 
-      const { error: erroConclusao } = await supabase.rpc(
-        "concluir_importacao_semanal",
-        { p_import_id: importId } as any,
-      );
-      if (erroConclusao) {
-        console.error("[WeeklyImportDialog] Erro na RPC concluir_importacao_semanal:", erroConclusao);
-        throw erroConclusao;
+      let rpcSucesso = false;
+      try {
+        const { error: erroRpcP } = await supabase.rpc(
+          "concluir_importacao_semanal" as any,
+          { p_import_id: importId } as any,
+        );
+        if (!erroRpcP) {
+          rpcSucesso = true;
+        } else {
+          console.warn("[WeeklyImportDialog] RPC com p_import_id retornou erro, tentando import_id:", erroRpcP);
+        }
+      } catch (err) {
+        console.warn("[WeeklyImportDialog] Falha ao invocar RPC p_import_id:", err);
+      }
+
+      if (!rpcSucesso) {
+        try {
+          const { error: erroRpcSemP } = await supabase.rpc(
+            "concluir_importacao_semanal" as any,
+            { import_id: importId } as any,
+          );
+          if (!erroRpcSemP) {
+            rpcSucesso = true;
+          } else {
+            console.warn("[WeeklyImportDialog] RPC com import_id retornou erro, aplicando fallback direto:", erroRpcSemP);
+          }
+        } catch (err) {
+          console.warn("[WeeklyImportDialog] Falha ao invocar RPC import_id:", err);
+        }
+      }
+
+      if (!rpcSucesso) {
+        const agora = new Date().toISOString();
+        await supabase
+          .from("weekly_imports")
+          .update({
+            is_current: false,
+            superseded_by: importId,
+            superseded_at: agora,
+          })
+          .eq("week_code", weekCode)
+          .eq("year", ano)
+          .neq("id", importId);
+
+        const { error: erroConcluirDireto } = await supabase
+          .from("weekly_imports")
+          .update({
+            status: "completed",
+            is_current: true,
+            imported_at: agora,
+          })
+          .eq("id", importId);
+
+        if (erroConcluirDireto) throw erroConcluirDireto;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["weekly_imports"] });

@@ -74,8 +74,11 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!importacaoSelecionada && importacoes.length > 0) {
-      setImportacaoSelecionada(importacoes[0]!.id);
+    if (importacoes.length > 0) {
+      const selecionadaExiste = importacoes.some((item) => item.id === importacaoSelecionada);
+      if (!selecionadaExiste) {
+        setImportacaoSelecionada(importacoes[0]!.id);
+      }
     }
   }, [importacaoSelecionada, importacoes]);
 
