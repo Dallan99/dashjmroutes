@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -11,12 +11,30 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CircleCheck, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import {
+  CalendarRange,
+  Check,
+  CircleCheck,
+  Clock,
+  FileText,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { BASES, PISO_JMROUTES, brl, brlCurto, perdaProjetada } from "@/components/dashboard/data";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ImportButton } from "@/components/history/ImportDialog";
+import { useWeeklyImports, useWeeklyItems } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
 interface SavingsViewProps {
@@ -27,38 +45,197 @@ interface SavingsViewProps {
 }
 
 export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficacia }: SavingsViewProps) {
-  const criticas = BASES.filter((b) => !b.comJMRoutes);
-  const fator = eficacia / 100;
+  const { data: importacoes = [], isLoading: carregandoImportacoes } = useWeeklyImports();
+  const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
+  const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
 
-  const linhas = useMemo(
+  useEffect(() => {
+    if (!importacaoSelecionada && importacoes.length > 0) {
+      setImportacaoSelecionada(importacoes[0]!.id);
+    }
+  }, [importacaoSelecionada, importacoes]);
+
+  const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
+  const { data: itensSemana = [], isLoading: carregandoItens } = useWeeklyItems(importacaoAtual?.id);
+
+  const basesSemana = useMemo(
     () =>
-      BASES.map((base) => {
-        const ativa = base.comJMRoutes || selecionadas.includes(base.id);
-        const projetado = ativa ? perdaProjetada(base.perdaAtual, fator) : base.perdaAtual;
-        return {
-          ...base,
-          ativa,
-          atual: base.perdaAtual,
-          projetado,
-          economia: base.perdaAtual - projetado,
-        };
-      }),
-    [selecionadas, fator],
+      Array.from(
+        new Map(
+          itensSemana
+            .filter((item) => item.base?.trim())
+            .map((item) => [item.base!.trim().toLocaleUpperCase("pt-BR"), item.base!.trim()]),
+        ).values(),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [itensSemana],
   );
 
-  const escopo = linhas.filter((l) => !l.comJMRoutes);
-  const totalAtual = escopo.reduce((s, l) => s + l.atual, 0);
-  const totalProjetado = escopo.reduce((s, l) => s + l.projetado, 0);
+  useEffect(() => {
+    if (
+      baseSelecionada !== "__todas_as_bases__" &&
+      !basesSemana.some((base) => base === baseSelecionada)
+    ) {
+      setBaseSelecionada("__todas_as_bases__");
+    }
+  }, [baseSelecionada, basesSemana]);
+
+  const itensFiltrados = useMemo(
+    () =>
+      itensSemana.filter(
+        (item) =>
+          baseSelecionada === "__todas_as_bases__" || item.base?.trim() === baseSelecionada,
+      ),
+    [baseSelecionada, itensSemana],
+  );
+
+  const fator = eficacia / 100;
+  const linhas = useMemo(() => {
+    const totais = new Map<string, number>();
+    for (const item of itensFiltrados) {
+      const base = item.base?.trim();
+      if (!base) continue;
+      totais.set(base, (totais.get(base) ?? 0) + Number(item.amount ?? 0));
+    }
+
+    return Array.from(totais, ([nome, atual]) => {
+      const referencia = BASES.find(
+        (base) => base.id.toLocaleUpperCase("pt-BR") === nome.toLocaleUpperCase("pt-BR"),
+      );
+      const comJMRoutes = referencia?.comJMRoutes ?? false;
+      const ativa = comJMRoutes || selecionadas.includes(nome);
+      const projetado = ativa ? perdaProjetada(atual, fator) : atual;
+
+      return {
+        id: nome,
+        nome,
+        comJMRoutes,
+        ativa,
+        atual,
+        projetado,
+        economia: atual - projetado,
+      };
+    }).sort((a, b) => b.atual - a.atual);
+  }, [itensFiltrados, selecionadas, fator]);
+
+  const criticas = linhas.filter((linha) => !linha.comJMRoutes);
+  const escopo = linhas.filter((linha) => !linha.comJMRoutes);
+  const totalAtual = escopo.reduce((soma, linha) => soma + linha.atual, 0);
+  const totalProjetado = escopo.reduce((soma, linha) => soma + linha.projetado, 0);
   const economiaSemanal = totalAtual - totalProjetado;
   const reducaoPct = totalAtual > 0 ? (economiaSemanal / totalAtual) * 100 : 0;
 
   const toggle = (id: string) =>
     setSelecionadas((atual) =>
-      atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id],
+      atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id],
     );
+
+  const formatarDataImportacao = (data: string | null) => {
+    if (!data) return "Data não informada";
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(data));
+  };
+
+  if (carregandoImportacoes) {
+    return <p className="text-sm font-medium text-muted-foreground">Carregando importações semanais…</p>;
+  }
+
+  if (importacoes.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center shadow-[var(--shadow-panel)]">
+        <h2 className="text-lg font-bold">Nenhuma semana concluída disponível</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm font-medium text-muted-foreground">
+          Importe e conclua uma planilha semanal para visualizar os dados reais de savings por base.
+        </p>
+        <div className="mt-5 flex justify-center">
+          <ImportButton />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">Savings por semana importada</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              Analise os dados reais da importação selecionada e mantenha a simulação operacional.
+            </p>
+          </div>
+          <ImportButton />
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Semana importada</Label>
+            <Select value={importacaoSelecionada} onValueChange={setImportacaoSelecionada}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione uma semana" />
+              </SelectTrigger>
+              <SelectContent>
+                {importacoes.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.week_code} · {item.file_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Base</Label>
+            <Select value={baseSelecionada} onValueChange={setBaseSelecionada}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Todas as bases" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__todas_as_bases__">Todas as bases</SelectItem>
+                {basesSemana.map((base) => (
+                  <SelectItem key={base} value={base}>
+                    {base}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-border pt-4">
+          <div className="flex items-center gap-2">
+            <CalendarRange className="size-4 text-primary" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              Linha do tempo das semanas concluídas
+            </h3>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {importacoes
+              .slice()
+              .reverse()
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setImportacaoSelecionada(item.id)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition-all duration-200",
+                    item.id === importacaoSelecionada
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  {item.week_code}
+                </button>
+              ))}
+          </div>
+        </div>
+      </section>
+
+      {carregandoItens ? (
+        <p className="text-sm font-medium text-muted-foreground">Carregando itens da semana selecionada…</p>
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {(
           [
@@ -66,7 +243,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               id: "perda-atual",
               label: "Perda semanal atual",
               value: brl(totalAtual),
-              hint: "Bases críticas em processo manual",
+              hint: `${itensFiltrados.length} registro(s) da semana selecionada`,
               icon: TrendingUp,
               tone: "loss",
             },
@@ -74,7 +251,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               id: "perda-projetada",
               label: "Perda semanal projetada",
               value: brl(totalProjetado),
-              hint: `Piso de referência: ${brl(PISO_JMROUTES)} / base`,
+              hint: `Piso de referência: ${brl(PISO_JMROUTES)} / base`, 
               icon: TrendingDown,
               tone: "gain",
             },
@@ -89,8 +266,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             {
               id: "escopo",
               label: "Bases no escopo",
-              value: `${selecionadas.length} de ${criticas.length}`,
-              hint: "Ver detalhes da simulação",
+              value: `${criticas.filter((base) => selecionadas.includes(base.id)).length} de ${criticas.length}`,
+              hint: "Bases da semana no escopo da simulação",
               icon: CircleCheck,
               tone: "neutral",
             },
@@ -112,6 +289,53 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             />
           </Link>
         ))}
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+            Histórico de importações
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="px-5 py-3">Semana</th>
+                <th className="px-5 py-3">Importada em</th>
+                <th className="px-5 py-3">Arquivo</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3 text-right">Registros</th>
+                <th className="px-5 py-3 text-right">Bases</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importacoes.map((item) => (
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "cursor-pointer border-t border-border transition-colors hover:bg-muted/40",
+                    item.id === importacaoSelecionada && "bg-primary/5",
+                  )}
+                  onClick={() => setImportacaoSelecionada(item.id)}
+                >
+                  <td className="px-5 py-3 font-semibold text-primary">{item.week_code}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{formatarDataImportacao(item.imported_at)}</td>
+                  <td className="max-w-[260px] truncate px-5 py-3 font-medium" title={item.file_name}>
+                    <span className="inline-flex items-center gap-2"><FileText className="size-4 text-muted-foreground" />{item.file_name}</span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                      <Check className="size-3.5" /> Concluída
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right font-semibold tabular-nums">{item.items_count}</td>
+                  <td className="px-5 py-3 text-right font-semibold tabular-nums">{item.bases_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -181,21 +405,27 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           </div>
 
           <div className="space-y-3">
-            {criticas.map((base) => (
-              <div key={base.id} className="flex items-center justify-between gap-3">
-                <Label htmlFor={`base-${base.id}`} className="flex flex-col items-start gap-0.5">
-                  <span className="text-sm font-semibold">{base.nome}</span>
-                  <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                    {brl(base.perdaAtual)} / semana
-                  </span>
-                </Label>
-                <Switch
-                  id={`base-${base.id}`}
-                  checked={selecionadas.includes(base.id)}
-                  onCheckedChange={() => toggle(base.id)}
-                />
-              </div>
-            ))}
+            {criticas.length > 0 ? (
+              criticas.map((base) => (
+                <div key={base.id} className="flex items-center justify-between gap-3">
+                  <Label htmlFor={`base-${base.id}`} className="flex flex-col items-start gap-0.5">
+                    <span className="text-sm font-semibold">{base.nome}</span>
+                    <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                      {brl(base.atual)} / semana
+                    </span>
+                  </Label>
+                  <Switch
+                    id={`base-${base.id}`}
+                    checked={selecionadas.includes(base.id)}
+                    onCheckedChange={() => toggle(base.id)}
+                  />
+                </div>
+              ))
+            ) : (
+              <p className="text-sm font-medium text-muted-foreground">
+                Nenhuma base elegível foi encontrada para a simulação com o filtro atual.
+              </p>
+            )}
           </div>
 
           <div className="space-y-3 border-t border-border pt-4">
@@ -278,7 +508,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       </section>
 
       <p className="pb-4 text-sm font-medium text-muted-foreground italic">
-        * Valores baseados na redução real observada na base SSP34 (referência JM TD). Simulação sujeita a variações operacionais.
+        <Clock className="mr-1 inline size-4" /> Dados reais da semana {importacaoAtual?.week_code ?? "selecionada"}. A simulação utiliza a referência operacional da SSP34 e não altera os registros importados.
       </p>
     </div>
   );
