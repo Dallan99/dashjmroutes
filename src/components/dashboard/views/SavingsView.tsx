@@ -140,7 +140,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     if (!importacaoAtual) return null;
     const ordenadas = importacoes
       .slice()
-      .sort((primeira, segunda) => primeira.year - second.year || primeira.week_number - second.week_number);
+      .sort((primeira, segunda) =>
+        primeira.year - segunda.year || primeira.week_number - segunda.week_number,
+      );
     const indiceAtual = ordenadas.findIndex((item) => item.id === importacaoAtual.id);
     return indiceAtual > 0 ? ordenadas[indiceAtual - 1] ?? null : null;
   }, [importacaoAtual, importacoes]);
