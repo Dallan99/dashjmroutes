@@ -1,6 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Loader2, Upload } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FileSpreadsheet,
+  Layers,
+  Loader2,
+  SlidersHorizontal,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import {
   CAMPOS_INTERNOS,
+  diagnosticarPlanilha,
   lerArquivo,
   normalizarSemana,
   sugerirMapeamento,
@@ -34,7 +46,6 @@ import {
 } from "./parse";
 
 const NENHUMA = "__nenhuma__";
-
 const normalizarTexto = (valor: string | null | undefined) =>
   valor?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 
@@ -62,8 +73,14 @@ export function WeeklyImportDialog({
   const [carregandoArquivo, setCarregandoArquivo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [duplicada, setDuplicada] = useState(false);
+  const [exibirTodosCampos, setExibirTodosCampos] = useState(false);
 
   const planilha = arquivo?.sheets.find((item) => item.name === aba) ?? null;
+  const diagnostico = useMemo(
+    () => diagnosticarPlanilha(planilha, mapping),
+    [planilha, mapping],
+  );
+
   const resultado = useMemo(
     () => (planilha ? transformarLinhas(planilha.rows, mapping) : null),
     [mapping, planilha],
@@ -79,6 +96,7 @@ export function WeeklyImportDialog({
     setMapping({});
     setSemana("");
     setDuplicada(false);
+    setExibirTodosCampos(false);
   };
 
   const fechar = (proximoEstado: boolean) => {
@@ -259,43 +277,240 @@ export function WeeklyImportDialog({
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Mapeamento de colunas</h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {CAMPOS_INTERNOS.map((campo) => (
-                    <div key={campo.key} className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold">{campo.label}</Label>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {campo.required ? "Essencial" : "Opcional"}
-                        </span>
+              {/* Resumo da Planilha */}
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <FileSpreadsheet className="size-4 text-primary" /> Resumo do arquivo
+                  </h3>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                    {diagnostico.totalLinhas} linhas identificadas
+                  </span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3 text-xs">
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                    <span className="text-muted-foreground block font-medium">Colunas reconhecidas</span>
+                    <span className="font-bold text-sm text-foreground">
+                      {diagnostico.colunasReconhecidas.length} de {planilha.headers.length}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                    <span className="text-muted-foreground block font-medium">Colunas extras (preservadas)</span>
+                    <span className="font-bold text-sm text-foreground">
+                      {diagnostico.colunasExtras.length}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                    <span className="text-muted-foreground block font-medium">Bases identificadas</span>
+                    <span className="font-bold text-sm text-foreground truncate block">
+                      {diagnostico.basesIdentificadas.length > 0
+                        ? diagnostico.basesIdentificadas.join(", ")
+                        : "Via DSP/Serviço"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Diagnóstico & Exceções */}
+              {diagnostico.estruturaCorrompida ? (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4">
+                  <p className="flex items-center gap-2 text-sm font-bold text-destructive">
+                    <AlertCircle className="size-4" /> Estrutura da planilha corrompida ou vazia
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-destructive-foreground">
+                    {diagnostico.motivoEstrutura}
+                  </p>
+                </div>
+              ) : diagnostico.precisaIntervencao ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="size-4 text-destructive shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-destructive">
+                          Intervenção manual necessária ({diagnostico.camposProblema.length} campo(s))
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Apenas os campos problemáticos requerem seleção manual para prosseguir.
+                        </p>
                       </div>
-                      <Select value={mapping[campo.key as CampoInterno] ?? NENHUMA} onValueChange={(valor) => setMapping((atual) => ({ ...atual, [campo.key]: valor === NENHUMA ? undefined : valor }))}>
-                        <SelectTrigger><SelectValue placeholder="Não mapeado" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NENHUMA}>Não mapeado</SelectItem>
-                          {planilha.headers.map((cabecalho) => <SelectItem key={cabecalho} value={cabecalho}>{cabecalho}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                    {diagnostico.camposProblema.map((campo) => (
+                      <div key={campo.key} className="rounded-lg border border-destructive/20 bg-background p-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-bold text-destructive">
+                            {campo.label} {campo.required ? "*" : ""}
+                          </Label>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+                            {campo.status === "ambiguo"
+                              ? "Múltiplas opções"
+                              : "Não encontrada"}
+                          </span>
+                        </div>
+                        <Select
+                          value={mapping[campo.key] ?? NENHUMA}
+                          onValueChange={(valor) =>
+                            setMapping((atual) => ({
+                              ...atual,
+                              [campo.key]: valor === NENHUMA ? undefined : valor,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs border-destructive/40">
+                            <SelectValue placeholder="Selecione a coluna correta" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NENHUMA}>Não mapeado</SelectItem>
+                            {planilha.headers.map((cabecalho) => (
+                              <SelectItem key={cabecalho} value={cabecalho}>
+                                {cabecalho}
+                                {campo.candidatos.includes(cabecalho) ? " (sugerido)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="mt-2 text-sm font-medium text-muted-foreground">Colunas não mapeadas são preservadas nos dados adicionais do registro.</p>
+              ) : (
+                <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/10 px-3.5 py-2.5 text-xs text-success font-medium">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4 shrink-0" />
+                    Todas as colunas essenciais foram reconhecidas automaticamente.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-foreground font-semibold hover:bg-success/20"
+                    onClick={() => setExibirTodosCampos((prev) => !prev)}
+                  >
+                    <SlidersHorizontal className="size-3 mr-1" />
+                    {exibirTodosCampos ? "Ocultar colunas" : "Ajustar colunas"}
+                    {exibirTodosCampos ? <ChevronUp className="size-3 ml-1" /> : <ChevronDown className="size-3 ml-1" />}
+                  </Button>
+                </div>
+              )}
+
+              {/* Mapeamento completo opcional */}
+              {exibirTodosCampos ? (
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Todas as colunas do sistema
+                    </h3>
+                    <span className="text-xs text-muted-foreground">Campos opcionais e extras</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {CAMPOS_INTERNOS.map((campo) => (
+                      <div key={campo.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-semibold">{campo.label}</Label>
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            {campo.required ? "Essencial" : "Opcional"}
+                          </span>
+                        </div>
+                        <Select
+                          value={mapping[campo.key as CampoInterno] ?? NENHUMA}
+                          onValueChange={(valor) =>
+                            setMapping((atual) => ({
+                              ...atual,
+                              [campo.key]: valor === NENHUMA ? undefined : valor,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Não mapeado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NENHUMA}>Não mapeado</SelectItem>
+                            {planilha.headers.map((cabecalho) => (
+                              <SelectItem key={cabecalho} value={cabecalho}>
+                                {cabecalho}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Prévia das primeiras linhas */}
+              {resultado && resultado.validas.length > 0 ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+                    <span>Prévia das primeiras linhas</span>
+                    <span>Exibindo até 5 de {resultado.validas.length} registros válidos</span>
+                  </div>
+                  <div className="overflow-x-auto rounded-lg border border-border bg-card text-xs shadow-sm">
+                    <table className="w-full min-w-[680px]">
+                      <thead className="bg-muted/60 text-muted-foreground">
+                        <tr className="text-left font-bold uppercase tracking-wider">
+                          <th className="px-3 py-2">Data</th>
+                          <th className="px-3 py-2">Base / Serv.</th>
+                          <th className="px-3 py-2">Pacote</th>
+                          <th className="px-3 py-2">Motorista</th>
+                          <th className="px-3 py-2 text-right">Valor</th>
+                          <th className="px-3 py-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resultado.validas.slice(0, 5).map((linha, idx) => (
+                          <tr key={idx} className="border-t border-border hover:bg-muted/20">
+                            <td className="px-3 py-2 whitespace-nowrap font-medium">{linha.event_date ?? "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap font-semibold">{linha.base ?? linha.service ?? "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap font-mono text-[11px]">{linha.package_id ?? "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap truncate max-w-[120px]">{linha.driver ?? "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap text-right tabular-nums font-bold text-destructive">
+                              {linha.amount !== null ? brl(linha.amount) : "—"}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{linha.operational_status ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-lg border border-border bg-muted/40 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm font-semibold">
+                  <div className="flex items-center gap-4">
+                    <span className="text-success">{resultado?.validas.length ?? 0} linhas válidas</span>
+                    <span className="text-destructive">{resultado?.rejeitadas.length ?? 0} rejeitadas</span>
+                  </div>
+                  <span className="text-foreground font-bold">Total: {brl(totalValor)}</span>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/40 p-4">
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm font-semibold">
-                  <span className="text-success">{resultado?.validas.length ?? 0} linhas válidas</span>
-                  <span className="text-destructive">{resultado?.rejeitadas.length ?? 0} rejeitadas</span>
-                  <span>Total: {brl(totalValor)}</span>
+              {duplicada ? (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4">
+                  <p className="flex items-center gap-2 text-sm font-bold text-destructive">
+                    <AlertTriangle className="size-4" /> Arquivo já importado
+                  </p>
+                  <p className="mt-1 text-xs font-medium">
+                    Este arquivo já possui uma importação semanal concluída.
+                  </p>
                 </div>
-              </div>
-
-              {duplicada ? <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4"><p className="flex items-center gap-2 text-sm font-bold text-destructive"><AlertTriangle className="size-4" /> Arquivo já importado</p><p className="mt-1 text-sm font-medium">Este arquivo já possui uma importação semanal concluída.</p></div> : null}
+              ) : null}
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => fechar(false)}>Cancelar</Button>
-                <Button disabled={salvando} onClick={() => void importar()}>{salvando ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Upload className="mr-2 size-4" />}Validar e importar</Button>
+                <Button variant="outline" onClick={() => fechar(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={salvando || diagnostico.precisaIntervencao || (resultado?.validas.length ?? 0) === 0}
+                  onClick={() => void importar()}
+                >
+                  {salvando ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Upload className="mr-2 size-4" />}
+                  Validar e importar
+                </Button>
               </div>
             </>
           ) : null}

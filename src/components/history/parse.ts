@@ -57,6 +57,27 @@ export function assinaturaCabecalhos(headers: string[]) {
   return headers.map(normalizarCabecalho).sort().join("|");
 }
 
+export type DiagnosticoCampo = {
+  key: CampoInterno;
+  label: string;
+  required: boolean;
+  candidatos: string[];
+  selecionado: string | null;
+  status: "ok" | "faltante" | "ambiguo";
+};
+
+export type DiagnosticoPlanilha = {
+  totalLinhas: number;
+  colunasReconhecidas: string[];
+  colunasExtras: string[];
+  basesIdentificadas: string[];
+  camposProblema: DiagnosticoCampo[];
+  todosCampos: DiagnosticoCampo[];
+  precisaIntervencao: boolean;
+  estruturaCorrompida: boolean;
+  motivoEstrutura: string | null;
+};
+
 export function sugerirMapeamento(headers: string[]): Mapping {
   const mapping: Mapping = {};
   const usados = new Set<string>();
@@ -75,41 +96,133 @@ export function sugerirMapeamento(headers: string[]): Mapping {
     "decision",
   ];
 
-  // 1. Correspondência exata normalizada
+  // 1. Correspondência exata normalizada (sem ambiguidade)
   camposOrdenados.forEach((campo) => {
     const aliases = ALIASES[campo];
-    const achado = headers.find((h) => {
+    const candidatosExatos = headers.filter((h) => {
       if (usados.has(h)) return false;
       const normalizado = normalizarCabecalho(h);
       return aliases.includes(normalizado);
     });
-    if (achado) {
-      mapping[campo] = achado;
-      usados.add(achado);
+    if (candidatosExatos.length === 1) {
+      mapping[campo] = candidatosExatos[0]!;
+      usados.add(candidatosExatos[0]!);
     }
   });
 
-  // 2. Correspondência por inclusão de prefixo/termo para cabeçalhos não mapeados
+  // 2. Correspondência por inclusão unívoca
   camposOrdenados.forEach((campo) => {
     if (mapping[campo]) return;
     const aliases = ALIASES[campo];
-    const achado = headers.find((h) => {
+    const candidatosInclusao = headers.filter((h) => {
       if (usados.has(h)) return false;
-      const normalizado = normalizarCabecalho(h);
-      if (!normalizado) return false;
+      const norm = normalizarCabecalho(h);
+      if (!norm) return false;
       return aliases.some(
         (alias) =>
-          (alias.length >= 4 && normalizado.includes(alias)) ||
-          (normalizado.length >= 4 && alias.includes(normalizado)),
+          (alias.length >= 4 && norm.includes(alias)) ||
+          (norm.length >= 4 && alias.includes(norm)),
       );
     });
-    if (achado) {
-      mapping[campo] = achado;
-      usados.add(achado);
+    if (candidatosInclusao.length === 1) {
+      mapping[campo] = candidatosInclusao[0]!;
+      usados.add(candidatosInclusao[0]!);
     }
   });
 
   return mapping;
+}
+
+export function diagnosticarPlanilha(
+  sheet: ParsedSheet | null,
+  mapping: Mapping,
+): DiagnosticoPlanilha {
+  if (!sheet || sheet.headers.length === 0 || sheet.rows.length === 0) {
+    return {
+      totalLinhas: sheet?.rows.length ?? 0,
+      colunasReconhecidas: [],
+      colunasExtras: [],
+      basesIdentificadas: [],
+      camposProblema: [],
+      todosCampos: [],
+      precisaIntervencao: true,
+      estruturaCorrompida: true,
+      motivoEstrutura: !sheet
+        ? "Nenhuma planilha selecionada."
+        : sheet.headers.length === 0
+          ? "A planilha não contém cabeçalhos válidos."
+          : "A planilha não contém linhas de dados.",
+    };
+  }
+
+  const todosCampos: DiagnosticoCampo[] = CAMPOS_INTERNOS.map((campo) => {
+    const aliases = ALIASES[campo.key];
+    const candidatos = sheet.headers.filter((h) => {
+      const norm = normalizarCabecalho(h);
+      if (!norm) return false;
+      if (aliases.includes(norm)) return true;
+      return aliases.some(
+        (alias) =>
+          (alias.length >= 4 && norm.includes(alias)) ||
+          (norm.length >= 4 && alias.includes(norm)),
+      );
+    });
+
+    const explicitamenteMapeado = mapping[campo.key];
+    const selecionado = explicitamenteMapeado ?? (candidatos.length === 1 ? candidatos[0]! : null);
+
+    let status: "ok" | "faltante" | "ambiguo" = "ok";
+    if (explicitamenteMapeado) {
+      status = "ok";
+    } else if (candidatos.length > 1) {
+      status = "ambiguo";
+    } else if (candidatos.length === 1) {
+      status = "ok";
+    } else if (campo.required) {
+      status = "faltante";
+    }
+
+    return {
+      key: campo.key,
+      label: campo.label,
+      required: campo.required,
+      candidatos,
+      selecionado,
+      status,
+    };
+  });
+
+  const camposProblema = todosCampos.filter((c) => c.status !== "ok");
+  const mapeadas = new Set(todosCampos.map((c) => c.selecionado).filter(Boolean) as string[]);
+  const colunasReconhecidas = sheet.headers.filter((h) => mapeadas.has(h));
+  const colunasExtras = sheet.headers.filter((h) => !mapeadas.has(h));
+
+  const baseField = todosCampos.find((c) => c.key === "base")?.selecionado;
+  const serviceField = todosCampos.find((c) => c.key === "service")?.selecionado;
+  const basesSet = new Set<string>();
+
+  for (const row of sheet.rows.slice(0, 500)) {
+    if (baseField && row[baseField]) {
+      const val = String(row[baseField]).trim();
+      if (val) basesSet.add(val);
+    } else if (serviceField && row[serviceField]) {
+      const val = String(row[serviceField]).trim();
+      const match = val.match(/\b(ESP\d+|SSP\d+|SSC\d+)\b/i);
+      if (match) basesSet.add(match[1]!.toUpperCase());
+    }
+  }
+
+  return {
+    totalLinhas: sheet.rows.length,
+    colunasReconhecidas,
+    colunasExtras,
+    basesIdentificadas: Array.from(basesSet).slice(0, 12),
+    camposProblema,
+    todosCampos,
+    precisaIntervencao: camposProblema.length > 0,
+    estruturaCorrompida: false,
+    motivoEstrutura: null,
+  };
 }
 
 async function sha256(buffer: ArrayBuffer) {
