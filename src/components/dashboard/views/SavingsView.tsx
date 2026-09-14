@@ -34,7 +34,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportButton } from "@/components/history/ImportDialog";
-import { useWeeklyImports, useWeeklyItems } from "@/components/history/weekly-api";
+import {
+  groupWeeklyItemsByActiveClassification,
+  useActiveClassificationRules,
+  useWeeklyImports,
+  useWeeklyItems,
+} from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
 interface SavingsViewProps {
@@ -57,6 +62,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
   const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
   const { data: itensSemana = [], isLoading: carregandoItens } = useWeeklyItems(importacaoAtual?.id);
+  const { data: regrasAtivas = [], isLoading: carregandoRegras } = useActiveClassificationRules();
 
   const basesSemana = useMemo(
     () =>
@@ -86,6 +92,11 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           baseSelecionada === "__todas_as_bases__" || item.base?.trim() === baseSelecionada,
       ),
     [baseSelecionada, itensSemana],
+  );
+
+  const gruposClassificacao = useMemo(
+    () => groupWeeklyItemsByActiveClassification(itensFiltrados, regrasAtivas),
+    [itensFiltrados, regrasAtivas],
   );
 
   const fator = eficacia / 100;
@@ -232,9 +243,55 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
-      {carregandoItens ? (
-        <p className="text-sm font-medium text-muted-foreground">Carregando itens da semana selecionada…</p>
+      {carregandoItens || carregandoRegras ? (
+        <p className="text-sm font-medium text-muted-foreground">
+          Carregando itens e regras de classificação da semana selecionada…
+        </p>
       ) : null}
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              Agrupamento por regra de classificação
+            </h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              Itens da semana e da base selecionadas são relacionados apenas às regras ativas.
+            </p>
+          </div>
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            {itensFiltrados.length} registro(s)
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {gruposClassificacao.map((grupo) => (
+            <div
+              key={grupo.key}
+              className={cn(
+                "rounded-lg border p-4 transition-all duration-200",
+                grupo.key === "sem_classificacao_regra"
+                  ? "border-border bg-muted/40"
+                  : "border-primary/20 bg-primary/5",
+              )}
+            >
+              <p className="text-sm font-bold">{grupo.category}</p>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {grupo.items_count} registro(s)
+              </p>
+              <p className="mt-3 text-lg font-extrabold tabular-nums text-primary">
+                {brl(grupo.amount_total)}
+              </p>
+              <p className="text-xs font-semibold text-muted-foreground">Valor informado nos registros</p>
+            </div>
+          ))}
+          {gruposClassificacao.length === 0 && !carregandoItens ? (
+            <p className="text-sm font-medium text-muted-foreground">
+              Não há registros para a semana e a base selecionadas.
+            </p>
+          ) : null}
+        </div>
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {(

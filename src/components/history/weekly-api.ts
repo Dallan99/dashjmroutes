@@ -40,6 +40,14 @@ export type ClassificationRule = {
   created_at: string | null;
 };
 
+export type WeeklyItemsClassificationGroup = {
+  key: string;
+  category: string;
+  items: WeeklyItem[];
+  items_count: number;
+  amount_total: number;
+};
+
 function normalizarBase(base: string | null) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 }
@@ -132,7 +140,57 @@ export function useWeeklyBases(importId: string | null | undefined) {
   };
 }
 
-/** Regras de classificação ativas para agrupamentos futuros no Savings. */
+/**
+ * Agrupa itens reais pela categoria da regra ativa correspondente.
+ * Itens sem classificação ou sem uma regra ativa permanecem, sem qualquer
+ * inferência financeira, no grupo sem_classificacao_regra.
+ */
+export function groupWeeklyItemsByActiveClassification(
+  items: WeeklyItem[],
+  activeRules: ClassificationRule[],
+): WeeklyItemsClassificationGroup[] {
+  const rulesByClassification = new Map(
+    activeRules
+      .filter((rule) => rule.active)
+      .map((rule) => [
+        rule.classification.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR"),
+        rule.category.trim(),
+      ]),
+  );
+
+  const groups = new Map<string, WeeklyItemsClassificationGroup>();
+
+  for (const item of items) {
+    const classificationKey = item.classification
+      ?.trim()
+      .replace(/\s+/g, " ")
+      .toLocaleUpperCase("pt-BR");
+    const category = classificationKey ? rulesByClassification.get(classificationKey) : undefined;
+    const key = category
+      ? `categoria:${category.toLocaleUpperCase("pt-BR")}`
+      : "sem_classificacao_regra";
+    const group = groups.get(key) ?? {
+      key,
+      category: category || "Sem classificação por regra",
+      items: [],
+      items_count: 0,
+      amount_total: 0,
+    };
+
+    group.items.push(item);
+    group.items_count += 1;
+    group.amount_total += Number.isFinite(Number(item.amount)) ? Number(item.amount) : 0;
+    groups.set(key, group);
+  }
+
+  return Array.from(groups.values()).sort((first, second) => {
+    if (first.key === "sem_classificacao_regra") return 1;
+    if (second.key === "sem_classificacao_regra") return -1;
+    return first.category.localeCompare(second.category, "pt-BR");
+  });
+}
+
+/** Regras de classificação ativas para agrupamentos do Savings. */
 export function useActiveClassificationRules() {
   return useQuery({
     queryKey: ["classification_rules", "active"],
