@@ -50,11 +50,16 @@ const normalizarTexto = (valor: string | null | undefined) =>
   valor?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 
 function mensagemErroImportacao(error: unknown) {
-  const mensagem = error instanceof Error ? error.message : "";
-  if (mensagem.toLocaleLowerCase("pt-BR").includes("duplicate")) {
+  const pgError = error as { message?: string; details?: string; hint?: string; code?: string } | undefined;
+  const mensagem = pgError?.message || (error instanceof Error ? error.message : "");
+  if (!mensagem) {
+    return "Não foi possível importar a planilha. Verifique os dados e tente novamente.";
+  }
+  if (mensagem.toLocaleLowerCase("pt-BR").includes("duplicate") || pgError?.code === "23505") {
     return "Esta semana ou arquivo já possui uma importação concluída.";
   }
-  return "Não foi possível importar a planilha. Verifique os dados e tente novamente.";
+  const complemento = pgError?.details ? ` (${pgError.details})` : "";
+  return `${mensagem}${complemento}`;
 }
 
 export function WeeklyImportDialog({
@@ -217,9 +222,12 @@ export function WeeklyImportDialog({
 
       const { error: erroConclusao } = await supabase.rpc(
         "concluir_importacao_semanal",
-        { import_id: importId },
+        { p_import_id: importId } as any,
       );
-      if (erroConclusao) throw erroConclusao;
+      if (erroConclusao) {
+        console.error("[WeeklyImportDialog] Erro na RPC concluir_importacao_semanal:", erroConclusao);
+        throw erroConclusao;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["weekly_imports"] });
       await queryClient.invalidateQueries({ queryKey: ["weekly_items"] });
@@ -228,6 +236,7 @@ export function WeeklyImportDialog({
       });
       fechar(false);
     } catch (error) {
+      console.error("[WeeklyImportDialog] Falha na importação semanal:", error);
       if (importId) {
         await supabase
           .from("weekly_imports")
