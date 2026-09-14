@@ -262,9 +262,14 @@ export function WeeklyImportDialog({
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Mapeamento de colunas</h3>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {CAMPOS_INTERNOS.filter((campo) => !["semana", "ano", "categoria", "valor"].includes(campo.key)).map((campo) => (
+                  {CAMPOS_INTERNOS.map((campo) => (
                     <div key={campo.key} className="space-y-1.5">
-                      <Label className="text-sm font-semibold">{campo.label}</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">{campo.label}</Label>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {campo.required ? "Essencial" : "Opcional"}
+                        </span>
+                      </div>
                       <Select value={mapping[campo.key as CampoInterno] ?? NENHUMA} onValueChange={(valor) => setMapping((atual) => ({ ...atual, [campo.key]: valor === NENHUMA ? undefined : valor }))}>
                         <SelectTrigger><SelectValue placeholder="Não mapeado" /></SelectTrigger>
                         <SelectContent>

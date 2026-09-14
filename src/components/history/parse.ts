@@ -1,22 +1,18 @@
 import * as XLSX from "xlsx";
 
 export const CAMPOS_INTERNOS = [
+  { key: "service", label: "Serviço", required: true },
+  { key: "package_id", label: "ID do pacote", required: true },
+  { key: "route_id", label: "ID da rota", required: true },
+  { key: "driver", label: "Motorista", required: true },
+  { key: "description", label: "Descrição", required: true },
+  { key: "event_date", label: "Data do evento", required: true },
+  { key: "amount", label: "Valor (R$)", required: true },
+  { key: "operational_status", label: "Status operacional", required: true },
   { key: "base", label: "Base", required: false },
-  { key: "service", label: "Serviço", required: false },
-  { key: "package_id", label: "ID do pacote", required: false },
-  { key: "route_id", label: "ID da rota", required: false },
-  { key: "driver", label: "Motorista", required: false },
-  { key: "description", label: "Descrição", required: false },
-  { key: "event_date", label: "Data do evento", required: false },
-  { key: "amount", label: "Valor (R$)", required: false },
-  { key: "operational_status", label: "Status operacional", required: false },
   { key: "classification", label: "Classificação", required: false },
   { key: "decision", label: "Decisão", required: false },
   { key: "evidence_url", label: "URL de evidência", required: false },
-  { key: "semana", label: "Semana (legado / sugestão)", required: false },
-  { key: "ano", label: "Ano (legado / sugestão)", required: false },
-  { key: "categoria", label: "Categoria (legado)", required: false },
-  { key: "valor", label: "Valor (legado)", required: false },
 ] as const;
 
 export type CampoInterno = (typeof CAMPOS_INTERNOS)[number]["key"];
@@ -34,51 +30,85 @@ export type ParsedFile = {
   sheets: ParsedSheet[];
 };
 
-const norm = (v: string) =>
-  v
-    .toString()
+export function normalizarCabecalho(v: string | null | undefined): string {
+  return String(v ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .trim();
+    .replace(/[^a-z0-9]/g, "");
+}
 
-const PALAVRAS: Record<CampoInterno, string[]> = {
-  base: ["base", "unidade", "filial", "ssp", "site", "cd"],
-  service: ["service", "servico", "tipo de servico"],
-  package_id: ["id do pacote", "package id", "package_id", "pacote"],
-  route_id: ["id da rota", "route id", "route_id", "rota"],
-  driver: ["motorista", "driver", "condutor"],
-  description: ["descricao do item", "descricao", "detalhe", "item", "ocorrencia"],
-  event_date: ["data do insucesso", "data do evento", "event date", "data"],
-  amount: ["r$", "amount", "valor", "custo", "perda", "gasto", "total"],
-  operational_status: ["status operacional", "operational status", "status"],
-  classification: ["classificacao", "classification", "categoria", "grupo", "motivo"],
-  decision: ["decisao", "decision"],
-  evidence_url: ["url de evidencia", "evidence url", "evidencia", "link"],
-  semana: ["semana", "week", "wk", "w"],
-  ano: ["ano", "year", "exercicio"],
-  categoria: ["categoria", "tipo", "classificacao", "grupo", "motivo"],
-  valor: ["valor", "custo", "perda", "gasto", "total", "r$", "amount"],
+const ALIASES: Record<CampoInterno, string[]> = {
+  service: ["service", "servico", "tipodeservico", "tiposervico", "dsp", "prestador", "transportadora"],
+  package_id: ["packageid", "iddopacote", "idpacote", "pacote", "tracking", "trackingid", "codigorastreio", "rastreio"],
+  route_id: ["routeid", "iddarota", "idrota", "rota", "circuito"],
+  driver: ["driver", "motorista", "condutor", "entregador", "nomedomotorista", "nomemotorista"],
+  description: ["description", "descricaodoitem", "descricaodopacote", "descricao", "detalhe", "ocorrencia", "itemdescription", "item"],
+  event_date: ["eventdate", "datadoevento", "datadoinsucesso", "dataevento", "datainsucesso", "dataocorrencia", "data", "occurrencedate"],
+  amount: ["amount", "valor", "valorr", "r", "custo", "perda", "gasto", "valortotal", "total", "prejuizo", "loss"],
+  operational_status: ["operationalstatus", "statusoperacional", "situacaooperacional", "status", "situacao"],
+  base: ["base", "unidade", "filial", "site", "cd", "estacao", "station", "ssp"],
+  classification: ["classification", "classificacao", "categoria", "grupo", "tipoperda", "subcategoria", "motivo"],
+  decision: ["decision", "decisao", "parecer", "conclusao", "resultado", "statusdecisao"],
+  evidence_url: ["evidenceurl", "urldeevidencia", "evidencia", "link", "foto", "url", "comprovante", "linkevidencia"],
 };
 
 export function assinaturaCabecalhos(headers: string[]) {
-  return headers.map(norm).sort().join("|");
+  return headers.map(normalizarCabecalho).sort().join("|");
 }
 
 export function sugerirMapeamento(headers: string[]): Mapping {
   const mapping: Mapping = {};
   const usados = new Set<string>();
-  (Object.keys(PALAVRAS) as CampoInterno[]).forEach((campo) => {
+  const camposOrdenados: CampoInterno[] = [
+    "package_id",
+    "route_id",
+    "event_date",
+    "operational_status",
+    "evidence_url",
+    "service",
+    "driver",
+    "description",
+    "amount",
+    "base",
+    "classification",
+    "decision",
+  ];
+
+  // 1. Correspondência exata normalizada
+  camposOrdenados.forEach((campo) => {
+    const aliases = ALIASES[campo];
     const achado = headers.find((h) => {
       if (usados.has(h)) return false;
-      const n = norm(h);
-      return PALAVRAS[campo].some((p) => n === p || n.includes(p));
+      const normalizado = normalizarCabecalho(h);
+      return aliases.includes(normalizado);
     });
     if (achado) {
       mapping[campo] = achado;
       usados.add(achado);
     }
   });
+
+  // 2. Correspondência por inclusão de prefixo/termo para cabeçalhos não mapeados
+  camposOrdenados.forEach((campo) => {
+    if (mapping[campo]) return;
+    const aliases = ALIASES[campo];
+    const achado = headers.find((h) => {
+      if (usados.has(h)) return false;
+      const normalizado = normalizarCabecalho(h);
+      if (!normalizado) return false;
+      return aliases.some(
+        (alias) =>
+          (alias.length >= 4 && normalizado.includes(alias)) ||
+          (normalizado.length >= 4 && alias.includes(normalizado)),
+      );
+    });
+    if (achado) {
+      mapping[campo] = achado;
+      usados.add(achado);
+    }
+  });
+
   return mapping;
 }
 
@@ -192,7 +222,7 @@ export function transformarLinhas(
     });
 
     const dataOriginal = get(row, "event_date");
-    const valorOriginal = get(row, "amount") ?? get(row, "valor");
+    const valorOriginal = get(row, "amount");
     const event_date = normalizarData(dataOriginal);
     const amount = parseValor(valorOriginal);
 
@@ -216,7 +246,7 @@ export function transformarLinhas(
       event_date,
       amount,
       operational_status: texto(get(row, "operational_status")),
-      classification: texto(get(row, "classification") ?? get(row, "categoria")),
+      classification: texto(get(row, "classification")),
       decision: texto(get(row, "decision")),
       evidence_url: texto(get(row, "evidence_url")),
       extra_data,
