@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      jm_column_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          mapping: Json
+          signature: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          mapping?: Json
+          signature: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          mapping?: Json
+          signature?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      jm_entries: {
+        Row: {
+          amount: number
+          base: string
+          category: string | null
+          created_at: string
+          description: string | null
+          extra: Json
+          id: string
+          import_id: string | null
+          note: string | null
+          quantity: number | null
+          updated_at: string
+          week_label: string
+          year: number
+        }
+        Insert: {
+          amount?: number
+          base: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          extra?: Json
+          id?: string
+          import_id?: string | null
+          note?: string | null
+          quantity?: number | null
+          updated_at?: string
+          week_label: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          base?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          extra?: Json
+          id?: string
+          import_id?: string | null
+          note?: string | null
+          quantity?: number | null
+          updated_at?: string
+          week_label?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jm_entries_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "jm_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jm_imports: {
+        Row: {
+          created_at: string
+          file_hash: string
+          file_name: string
+          id: string
+          mapping: Json
+          rejected_rows: number
+          sheet_name: string | null
+          updated_at: string
+          valid_rows: number
+          week_label: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          file_name: string
+          id?: string
+          mapping?: Json
+          rejected_rows?: number
+          sheet_name?: string | null
+          updated_at?: string
+          valid_rows?: number
+          week_label: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          file_name?: string
+          id?: string
+          mapping?: Json
+          rejected_rows?: number
+          sheet_name?: string | null
+          updated_at?: string
+          valid_rows?: number
+          week_label?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      jm_notes: {
+        Row: {
+          base: string | null
+          created_at: string
+          id: string
+          note: string
+          updated_at: string
+          week_label: string
+          year: number
+        }
+        Insert: {
+          base?: string | null
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+          week_label: string
+          year: number
+        }
+        Update: {
+          base?: string | null
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+          week_label?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
