@@ -73,7 +73,6 @@ export function WeeklyImportDialog({
   const [carregandoArquivo, setCarregandoArquivo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [duplicada, setDuplicada] = useState(false);
-  const [exibirTodosCampos, setExibirTodosCampos] = useState(false);
 
   const planilha = arquivo?.sheets.find((item) => item.name === aba) ?? null;
   const diagnostico = useMemo(
@@ -96,7 +95,6 @@ export function WeeklyImportDialog({
     setMapping({});
     setSemana("");
     setDuplicada(false);
-    setExibirTodosCampos(false);
   };
 
   const fechar = (proximoEstado: boolean) => {
