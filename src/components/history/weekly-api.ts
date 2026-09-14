@@ -568,18 +568,24 @@ export function calcularSaudeOperacional(
     const semanasOfensoras = semanasAvaliadas - semanasSaudaveis;
     const mediaSemanal =
       semanas.reduce((total, semana) => total + semana.valor, 0) / semanasAvaliadas;
-    const melhorSemana = semanas.reduce((melhor, semana) =>
-      semana.valor < melhor.valor ||
-      (semana.valor === melhor.valor && semana.weekCode.localeCompare(melhor.weekCode, "pt-BR") < 0)
-        ? semana
-        : melhor,
-    );
-    const piorSemana = semanas.reduce((pior, semana) =>
-      semana.valor > pior.valor ||
-      (semana.valor === pior.valor && semana.weekCode.localeCompare(pior.weekCode, "pt-BR") < 0)
-        ? semana
-        : pior,
-    );
+    const melhorSemana =
+      semanas.length > 0
+        ? semanas.reduce((melhor, semana) =>
+            semana.valor < melhor.valor ||
+            (semana.valor === melhor.valor && semana.weekCode.localeCompare(melhor.weekCode, "pt-BR") < 0)
+              ? semana
+              : melhor,
+          )
+        : { weekCode: "-", valor: 0 };
+    const piorSemana =
+      semanas.length > 0
+        ? semanas.reduce((pior, semana) =>
+            semana.valor > pior.valor ||
+            (semana.valor === pior.valor && semana.weekCode.localeCompare(pior.weekCode, "pt-BR") < 0)
+              ? semana
+              : pior,
+          )
+        : { weekCode: "-", valor: 0 };
 
     return {
       base,

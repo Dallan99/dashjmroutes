@@ -54,7 +54,7 @@ function mensagemErroImportacao(error: unknown) {
   if (mensagem.toLocaleLowerCase("pt-BR").includes("duplicate")) {
     return "Esta semana ou arquivo já possui uma importação concluída.";
   }
-  return "Não foi possível concluir a importação semanal. Tente novamente.";
+  return "Não foi possível importar a planilha. Verifique os dados e tente novamente.";
 }
 
 export function WeeklyImportDialog({
@@ -73,6 +73,7 @@ export function WeeklyImportDialog({
   const [carregandoArquivo, setCarregandoArquivo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [duplicada, setDuplicada] = useState(false);
+  const [exibirTodosCampos, setExibirTodosCampos] = useState(false);
 
   const planilha = arquivo?.sheets.find((item) => item.name === aba) ?? null;
   const diagnostico = useMemo(
@@ -95,6 +96,7 @@ export function WeeklyImportDialog({
     setMapping({});
     setSemana("");
     setDuplicada(false);
+    setExibirTodosCampos(false);
   };
 
   const fechar = (proximoEstado: boolean) => {
