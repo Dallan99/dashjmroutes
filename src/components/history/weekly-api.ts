@@ -56,7 +56,7 @@ export type WeeklyItemsClassificationGroup = {
   amount_total: number;
 };
 
-function normalizarBase(base: string | null) {
+export function normalizarBase(base: string | null | undefined) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 }
 

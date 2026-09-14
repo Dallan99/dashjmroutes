@@ -44,6 +44,7 @@ import {
   useWeeklyItems,
   useWeeklyItemsForImports,
   useWeekNotes,
+  normalizarBase,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
@@ -99,11 +100,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   const basesSemana = useMemo(
     () =>
       Array.from(
-        new Map(
-          itensSemana
-            .filter((item) => item.base?.trim())
-            .map((item) => [item.base!.trim().toLocaleUpperCase("pt-BR"), item.base!.trim()]),
-        ).values(),
+        new Set(itensSemana.map((item) => normalizarBase(item.base)).filter(Boolean)),
       ).sort((a, b) => a.localeCompare(b, "pt-BR")),
     [itensSemana],
   );
@@ -180,7 +177,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     const porBase = new Map<string, { base: string; atual: number; anterior: number }>();
     for (const [tipo, itens] of [["atual", itensAtuais], ["anterior", itensAnteriores]] as const) {
       for (const item of itens) {
-        const base = item.base?.trim() || "Sem base";
+        const base = normalizarBase(item.base) || "Sem base";
         const total = porBase.get(base) ?? { base, atual: 0, anterior: 0 };
         total[tipo] += 1;
         porBase.set(base, total);
@@ -208,8 +205,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     () =>
       observacoesSemana.filter(
         (observacao) =>
-          observacao.base === null ||
-          (baseSelecionada !== "__todas_as_bases__" && observacao.base?.trim() === baseSelecionada),
+          !normalizarBase(observacao.base) ||
+          (baseSelecionada !== "__todas_as_bases__" && normalizarBase(observacao.base) === baseSelecionada),
       ),
     [baseSelecionada, observacoesSemana],
   );
@@ -220,8 +217,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
 
     const totalBases = new Set(
       itensFiltrados
-        .map((item) => item.base?.trim())
-        .filter((base): base is string => Boolean(base)),
+        .map((item) => normalizarBase(item.base))
+        .filter(Boolean),
     ).size;
     const valorTotal = itensFiltrados.reduce(
       (total, item) =>
@@ -275,22 +272,24 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   const linhas = useMemo(() => {
     const totais = new Map<string, number>();
     for (const item of itensFiltrados) {
-      const base = item.base?.trim();
-      if (!base) continue;
-      totais.set(base, (totais.get(base) ?? 0) + Number(item.amount ?? 0));
+      const base = normalizarBase(item.base) || "Sem base";
+      const amount = typeof item.amount === "number" && Number.isFinite(item.amount) ? item.amount : 0;
+      totais.set(base, (totais.get(base) ?? 0) + amount);
     }
 
     return Array.from(totais, ([nome, atual]) => {
+      const semBase = nome === "Sem base";
       const referencia = BASES.find(
-        (base) => base.id.toLocaleUpperCase("pt-BR") === nome.toLocaleUpperCase("pt-BR"),
+        (base) => normalizarBase(base.id) === nome,
       );
       const comJMRoutes = referencia?.comJMRoutes ?? false;
-      const ativa = comJMRoutes || selecionadas.includes(nome);
+      const ativa = !semBase && (comJMRoutes || selecionadas.includes(nome));
       const projetado = ativa ? perdaProjetada(atual, fator) : atual;
 
       return {
         id: nome,
         nome,
+        semBase,
         comJMRoutes,
         ativa,
         atual,
@@ -300,7 +299,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     }).sort((a, b) => b.atual - a.atual);
   }, [itensFiltrados, selecionadas, fator]);
 
-  const criticas = linhas.filter((linha) => !linha.comJMRoutes);
+  const criticas = linhas.filter((linha) => !linha.comJMRoutes && !linha.semBase);
   const escopo = linhas.filter((linha) => !linha.comJMRoutes);
   const totalAtual = escopo.reduce((soma, linha) => soma + linha.atual, 0);
   const totalProjetado = escopo.reduce((soma, linha) => soma + linha.projetado, 0);
@@ -681,7 +680,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         <div className="mt-4 space-y-3">
           {observacoesVisiveis.length > 0 ? observacoesVisiveis.map((observacao) => (
             <div key={observacao.id} className="rounded-lg border border-border bg-muted/40 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-primary">{observacao.base?.trim() || "Observação geral"}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{normalizarBase(observacao.base) || "Observação geral"}</p>
               <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed">{observacao.note}</p>
             </div>
           )) : <p className="text-sm font-medium text-muted-foreground">Não há observações registradas para este filtro.</p>}
