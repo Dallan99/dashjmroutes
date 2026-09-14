@@ -61,8 +61,10 @@ export type WeeklyClassificationSurvey = {
   records_count: number;
   weeks_count: number;
   bases_count: number;
+  has_rule: boolean;
   has_active_rule: boolean;
   active_rules_count: number;
+  inactive_rules_count: number;
   category: string | null;
 };
 
@@ -186,19 +188,18 @@ export function useWeeklyClassificationsSurvey() {
             .select("import_id, base, classification"),
           supabase
             .from("classification_rules")
-            .select("id, classification, category, active, created_at")
-            .eq("active", true),
+            .select("id, classification, category, active, created_at"),
         ]);
 
       if (itemsError) throw itemsError;
       if (rulesError) throw rulesError;
 
-      const activeRulesByClassification = new Map<string, ClassificationRule[]>();
+      const rulesByClassification = new Map<string, ClassificationRule[]>();
       for (const rule of rules ?? []) {
         const key = normalizarClassificacao(rule.classification);
-        const current = activeRulesByClassification.get(key) ?? [];
+        const current = rulesByClassification.get(key) ?? [];
         current.push(rule);
-        activeRulesByClassification.set(key, current);
+        rulesByClassification.set(key, current);
       }
 
       const surveyByOriginalClassification = new Map<
@@ -229,18 +230,27 @@ export function useWeeklyClassificationsSurvey() {
 
       return Array.from(surveyByOriginalClassification.values())
         .map((entry) => {
-          const activeRules = activeRulesByClassification.get(
+          const classificationRules = rulesByClassification.get(
             normalizarClassificacao(entry.classification),
           ) ?? [];
+          const activeRules = classificationRules.filter((rule) => rule.active);
+          const inactiveRules = classificationRules.filter((rule) => !rule.active);
+          const categoryRule = activeRules.length === 1
+            ? activeRules[0]
+            : classificationRules.length === 1
+              ? classificationRules[0]
+              : undefined;
 
           return {
             classification: entry.classification,
             records_count: entry.records_count,
             weeks_count: entry.importIds.size,
             bases_count: entry.bases.size,
+            has_rule: classificationRules.length > 0,
             has_active_rule: activeRules.length > 0,
             active_rules_count: activeRules.length,
-            category: activeRules.length === 1 ? activeRules[0]?.category ?? null : null,
+            inactive_rules_count: inactiveRules.length,
+            category: categoryRule?.category ?? null,
           };
         })
         .sort((first, second) => {
