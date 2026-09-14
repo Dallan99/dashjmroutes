@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImportButton } from "@/components/history/ImportDialog";
+import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
 import {
   groupWeeklyItemsByActiveClassification,
   useActiveClassificationRules,
@@ -381,9 +381,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold">Savings por semana importada</h2>
+            <h2 className="text-lg font-bold">Dados reais — Histórico semanal</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              Analise os dados reais da importação selecionada e mantenha a simulação operacional.
+              Analise exclusivamente os dados reais da importação semanal selecionada.
             </p>
           </div>
           <ImportButton />
@@ -500,7 +500,12 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais — Histórico semanal</span>
+          <p className="text-sm font-medium text-muted-foreground">Indicadores da semana e da base selecionadas.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             id: "total-registros",
@@ -553,6 +558,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             tone={kpi.tone}
           />
         ))}
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -692,8 +698,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Perda semanal por base
+            Simulação / Projeção por base
           </h2>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">O valor atual vem do histórico semanal selecionado; o valor projetado é uma simulação operacional.</p>
           <div className="mt-5 h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -748,7 +755,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Simulação
+              Simulação / Projeção
             </h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
               Escolha as bases que receberão o JMRoutes.
@@ -801,7 +808,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Detalhamento por base
+            Simulação / Projeção — Detalhamento por base
           </h2>
         </div>
         <div className="overflow-x-auto">
