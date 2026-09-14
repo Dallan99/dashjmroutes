@@ -37,9 +37,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
+import { ImportButton } from "@/components/history/ImportDialog";
 import {
   calcularSaudeOperacional,
   groupWeeklyItemsByActiveClassification,
+  LIMITE_SAUDAVEL_OPERACAO,
+  MIN_SEMANAS_RANKING,
   SAVINGS_SAUDE_CONFIG,
   useActiveClassificationRules,
   useWeeklyImports,
@@ -586,9 +589,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
             <p className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               Saúde operacional — dados reais classificados
             </p>
-            <h2 className="mt-3 text-lg font-bold">Média / Projetado e limite saudável</h2>
+            <h2 className="mt-3 text-lg font-bold">Média histórica da Base e limite saudável</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              Projetado representa a média semanal histórica real por operação, sem valores financeiros simulados.
+              A média semanal usa exclusivamente os valores válidos das semanas em que cada Base possui dados reais. Não há preenchimento de semanas ausentes com zero e não são usados valores simulados.
             </p>
           </div>
           <div className="w-full sm:w-44">
@@ -627,7 +630,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               />
               <KpiCard
                 label="Limite saudável"
-                value={brl(SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL)}
+                value={brl(LIMITE_SAUDAVEL_OPERACAO)}
                 hint="Por operação por semana"
                 icon={Check}
                 tone="gain"
@@ -635,7 +638,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               <KpiCard
                 label="Operações avaliadas"
                 value={`${resumoSaude.operacoes.length}`}
-                hint={`Mínimo futuro configurado: ${SAVINGS_SAUDE_CONFIG.MIN_SEMANAS_RANKING} semana(s)`}
+                hint={`Mínimo futuro configurado: ${MIN_SEMANAS_RANKING} semana(s)`}
                 icon={CalendarRange}
                 tone="neutral"
               />
@@ -646,7 +649,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     <th className="px-4 py-3">Base</th>
-                    <th className="px-4 py-3 text-right">Projetado / média</th>
+                    <th className="px-4 py-3 text-right">Média semanal</th>
+                    <th className="px-4 py-3 text-right">Diferença p/ limite</th>
                     <th className="px-4 py-3 text-right">Semanas avaliadas</th>
                     <th className="px-4 py-3 text-right">Saudáveis</th>
                     <th className="px-4 py-3 text-right">Ofensoras</th>
@@ -661,12 +665,15 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                     <tr key={operacao.base} className="border-t border-border">
                       <td className="px-4 py-3 font-semibold">{operacao.base}</td>
                       <td className="px-4 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td>
+                      <td className={cn("px-4 py-3 text-right font-semibold tabular-nums", operacao.diferencaLimite <= 0 ? "text-success" : "text-destructive")}>
+                        {operacao.diferencaLimite <= 0 ? "−" : "+"}{brl(Math.abs(operacao.diferencaLimite))}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(1)}%</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{brl(operacao.melhorSemana)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{brl(operacao.piorSemana)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.melhorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.melhorSemana.weekCode}</span></td>
+                      <td className="px-4 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.piorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.piorSemana.weekCode}</span></td>
                       <td className="px-4 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td>
                     </tr>
                   ))}
@@ -686,8 +693,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-5 py-3">Posição</th><th className="px-5 py-3">Base</th><th className="px-5 py-3 text-right">Média semanal</th><th className="px-5 py-3 text-right">Semanas avaliadas</th><th className="px-5 py-3 text-right">Saudáveis</th><th className="px-5 py-3 text-right">Ofensoras</th><th className="px-5 py-3 text-right">Saúde</th><th className="px-5 py-3 text-right">Status atual</th></tr></thead>
-              <tbody>{resumoSaude.operacoes.map((operacao, indice) => <tr key={operacao.base} className="border-t border-border transition-colors hover:bg-muted/40"><td className="px-5 py-3 font-extrabold text-primary">{indice + 1}º</td><td className="px-5 py-3 font-semibold">{operacao.base}</td><td className="px-5 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td><td className="px-5 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td><td className="px-5 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td><td className="px-5 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(1)}%</td><td className="px-5 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td></tr>)}</tbody>
+              <thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-5 py-3">Posição</th><th className="px-5 py-3">Base</th><th className="px-5 py-3 text-right">Média semanal</th><th className="px-5 py-3 text-right">Semanas avaliadas</th><th className="px-5 py-3 text-right">Saudáveis</th><th className="px-5 py-3 text-right">Ofensoras</th><th className="px-5 py-3 text-right">Saúde</th><th className="px-5 py-3 text-right">Melhor semana</th><th className="px-5 py-3 text-right">Pior semana</th><th className="px-5 py-3 text-right">Status</th></tr></thead>
+              <tbody>{resumoSaude.operacoes.map((operacao, indice) => <tr key={operacao.base} className="border-t border-border transition-colors hover:bg-muted/40"><td className="px-5 py-3 font-extrabold text-primary">{indice + 1}º</td><td className="px-5 py-3 font-semibold">{operacao.base}</td><td className="px-5 py-3 text-right font-bold tabular-nums">{brl(operacao.mediaSemanal)}</td><td className="px-5 py-3 text-right tabular-nums">{operacao.semanasAvaliadas}</td><td className="px-5 py-3 text-right tabular-nums text-success">{operacao.semanasSaudaveis}</td><td className="px-5 py-3 text-right tabular-nums text-destructive">{operacao.semanasOfensoras}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{operacao.percentualSaude.toFixed(2)}%</td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.melhorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.melhorSemana.weekCode}</span></td><td className="px-5 py-3 text-right tabular-nums"><span className="font-semibold">{brl(operacao.piorSemana.valor)}</span><span className="ml-1 text-xs text-muted-foreground">{operacao.piorSemana.weekCode}</span></td><td className="px-5 py-3 text-right"><StatusSaude status={operacao.statusAtual} /></td></tr>)}</tbody>
             </table>
           </div>
         </section>
@@ -1004,8 +1011,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   );
 }
 
-function StatusSaude({ status }: { status: "SAUDÁVEL" | "OFENSOR" }) {
-  const saudavel = status === "SAUDÁVEL";
+function StatusSaude({ status }: { status: "Saudável" | "Ofensor" }) {
+  const saudavel = status === "Saudável";
   return (
     <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold", saudavel ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive")}>
       {status}

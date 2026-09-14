@@ -68,23 +68,35 @@ export type WeeklyClassificationSurvey = {
   category: string | null;
 };
 
+/** Limite de negócio aplicado a cada operação em cada semana. */
+export const LIMITE_SAUDAVEL_OPERACAO = 1000;
+
+/** Quantidade mínima reservada para futura elegibilidade de premiação. */
+export const MIN_SEMANAS_RANKING = 1;
+
 /** Parâmetros centralizados para a saúde operacional e o ranking histórico. */
 export const SAVINGS_SAUDE_CONFIG = {
-  LIMITE_SAUDAVEL: 1000,
-  MIN_SEMANAS_RANKING: 1,
+  LIMITE_SAUDAVEL_OPERACAO,
+  MIN_SEMANAS_RANKING,
   CATEGORIA_OFENSA: "Perda",
 } as const;
+
+export type SemanaOperacao = {
+  weekCode: string;
+  valor: number;
+};
 
 export type RankingOperacao = {
   base: string;
   mediaSemanal: number;
+  diferencaLimite: number;
   semanasAvaliadas: number;
   semanasSaudaveis: number;
   semanasOfensoras: number;
   percentualSaude: number;
-  melhorSemana: number;
-  piorSemana: number;
-  statusAtual: "SAUDÁVEL" | "OFENSOR";
+  melhorSemana: SemanaOperacao;
+  piorSemana: SemanaOperacao;
+  statusAtual: "Saudável" | "Ofensor";
 };
 
 export type ResumoSaudeOperacional = {
@@ -466,25 +478,41 @@ export function calcularSaudeOperacional(
   }
 
   const operacoes = Array.from(valoresPorBaseESemana, ([base, valoresPorSemana]) => {
-    const valores = Array.from(valoresPorSemana.values());
-    const semanasAvaliadas = valores.length;
-    const semanasSaudaveis = valores.filter(
-      (valor) => valor <= SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL,
+    const semanas = Array.from(valoresPorSemana, ([importId, valor]) => ({
+      weekCode: importacoesConsideradas.get(importId)?.week_code ?? importId,
+      valor,
+    }));
+    const semanasAvaliadas = semanas.length;
+    const semanasSaudaveis = semanas.filter(
+      (semana) => semana.valor <= LIMITE_SAUDAVEL_OPERACAO,
     ).length;
     const semanasOfensoras = semanasAvaliadas - semanasSaudaveis;
-    const mediaSemanal = valores.reduce((total, valor) => total + valor, 0) / semanasAvaliadas;
+    const mediaSemanal =
+      semanas.reduce((total, semana) => total + semana.valor, 0) / semanasAvaliadas;
+    const melhorSemana = semanas.reduce((melhor, semana) =>
+      semana.valor < melhor.valor ||
+      (semana.valor === melhor.valor && semana.weekCode.localeCompare(melhor.weekCode, "pt-BR") < 0)
+        ? semana
+        : melhor,
+    );
+    const piorSemana = semanas.reduce((pior, semana) =>
+      semana.valor > pior.valor ||
+      (semana.valor === pior.valor && semana.weekCode.localeCompare(pior.weekCode, "pt-BR") < 0)
+        ? semana
+        : pior,
+    );
 
     return {
       base,
       mediaSemanal,
+      diferencaLimite: mediaSemanal - LIMITE_SAUDAVEL_OPERACAO,
       semanasAvaliadas,
       semanasSaudaveis,
       semanasOfensoras,
       percentualSaude: (semanasSaudaveis / semanasAvaliadas) * 100,
-      melhorSemana: Math.min(...valores),
-      piorSemana: Math.max(...valores),
-      statusAtual:
-        mediaSemanal <= SAVINGS_SAUDE_CONFIG.LIMITE_SAUDAVEL ? "SAUDÁVEL" : "OFENSOR",
+      melhorSemana,
+      piorSemana,
+      statusAtual: mediaSemanal <= LIMITE_SAUDAVEL_OPERACAO ? "Saudável" : "Ofensor",
     } satisfies RankingOperacao;
   }).sort((primeira, segunda) => {
     if (primeira.mediaSemanal !== segunda.mediaSemanal) {
@@ -496,8 +524,8 @@ export function calcularSaudeOperacional(
     if (primeira.percentualSaude !== segunda.percentualSaude) {
       return segunda.percentualSaude - primeira.percentualSaude;
     }
-    if (primeira.piorSemana !== segunda.piorSemana) {
-      return primeira.piorSemana - segunda.piorSemana;
+    if (primeira.piorSemana.valor !== segunda.piorSemana.valor) {
+      return primeira.piorSemana.valor - segunda.piorSemana.valor;
     }
     if (primeira.semanasAvaliadas !== segunda.semanasAvaliadas) {
       return segunda.semanasAvaliadas - primeira.semanasAvaliadas;
