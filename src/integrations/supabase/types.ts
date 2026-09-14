@@ -139,6 +139,190 @@ export type Database = {
         }
         Relationships: []
       }
+      classification_rules: {
+        Row: {
+          active: boolean | null
+          category: string
+          classification: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          active?: boolean | null
+          category: string
+          classification: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          active?: boolean | null
+          category?: string
+          classification?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      service_base_mappings: {
+        Row: {
+          active: boolean | null
+          base: string
+          created_at: string | null
+          id: string
+          service: string
+        }
+        Insert: {
+          active?: boolean | null
+          base: string
+          created_at?: string | null
+          id?: string
+          service: string
+        }
+        Update: {
+          active?: boolean | null
+          base?: string
+          created_at?: string | null
+          id?: string
+          service?: string
+        }
+        Relationships: []
+      }
+      week_notes: {
+        Row: {
+          base: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          import_id: string
+          note: string
+        }
+        Insert: {
+          base?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          import_id: string
+          note: string
+        }
+        Update: {
+          base?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          import_id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "week_notes_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_imports: {
+        Row: {
+          file_hash: string
+          file_name: string
+          id: string
+          imported_at: string | null
+          imported_by: string | null
+          mapping_json: Json | null
+          status: string | null
+          week_code: string
+          week_number: number
+          year: number
+        }
+        Insert: {
+          file_hash: string
+          file_name: string
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          mapping_json?: Json | null
+          status?: string | null
+          week_code: string
+          week_number: number
+          year: number
+        }
+        Update: {
+          file_hash?: string
+          file_name?: string
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          mapping_json?: Json | null
+          status?: string | null
+          week_code?: string
+          week_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      weekly_items: {
+        Row: {
+          amount: number | null
+          base: string | null
+          classification: string | null
+          decision: string | null
+          description: string | null
+          driver: string | null
+          event_date: string | null
+          evidence_url: string | null
+          extra_data: Json | null
+          id: string
+          import_id: string
+          operational_status: string | null
+          package_id: string | null
+          route_id: string | null
+          service: string | null
+        }
+        Insert: {
+          amount?: number | null
+          base?: string | null
+          classification?: string | null
+          decision?: string | null
+          description?: string | null
+          driver?: string | null
+          event_date?: string | null
+          evidence_url?: string | null
+          extra_data?: Json | null
+          id?: string
+          import_id: string
+          operational_status?: string | null
+          package_id?: string | null
+          route_id?: string | null
+          service?: string | null
+        }
+        Update: {
+          amount?: number | null
+          base?: string | null
+          classification?: string | null
+          decision?: string | null
+          description?: string | null
+          driver?: string | null
+          event_date?: string | null
+          evidence_url?: string | null
+          extra_data?: Json | null
+          id?: string
+          import_id?: string
+          operational_status?: string | null
+          package_id?: string | null
+          route_id?: string | null
+          service?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_items_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jm_notes: {
         Row: {
           base: string | null
