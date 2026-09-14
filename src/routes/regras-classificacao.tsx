@@ -1,8 +1,23 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, Check, Search, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWeeklyClassificationsSurvey } from "@/components/history/weekly-api";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  criarRegraClassificacao,
+  useWeeklyClassificationsSurvey,
+} from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/regras-classificacao")({
@@ -19,7 +34,12 @@ export const Route = createFileRoute("/regras-classificacao")({
 });
 
 function RegrasClassificacao() {
+  const queryClient = useQueryClient();
   const [busca, setBusca] = useState("");
+  const [classificacaoSelecionada, setClassificacaoSelecionada] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [ativa, setAtiva] = useState(true);
+  const [salvando, setSalvando] = useState(false);
   const { data: classificacoes = [], isLoading, isError, refetch } = useWeeklyClassificationsSurvey();
 
   const classificacoesVisiveis = useMemo(() => {
@@ -37,6 +57,45 @@ function RegrasClassificacao() {
   const semRegraAtiva = classificacoes.filter((item) => !item.has_active_rule).length;
   const regrasAmbiguas = classificacoes.filter((item) => item.active_rules_count > 1).length;
   const totalRegistros = classificacoes.reduce((total, item) => total + item.records_count, 0);
+  const classificacoesParaCadastro = classificacoes.filter(
+    (item): item is typeof item & { classification: string } => Boolean(item.classification),
+  );
+
+  const cadastrarRegra = async () => {
+    const classification = classificacaoSelecionada.trim();
+    const category = categoria.trim();
+
+    if (!classification) {
+      toast.error("Selecione uma classificação existente.");
+      return;
+    }
+
+    if (!category) {
+      toast.error("Informe uma categoria para a regra.");
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await criarRegraClassificacao({ classification, category, active: ativa });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["weekly_items", "classification-survey"] }),
+        queryClient.invalidateQueries({ queryKey: ["classification_rules", "active"] }),
+      ]);
+      setClassificacaoSelecionada("");
+      setCategoria("");
+      setAtiva(true);
+      toast.success("Regra cadastrada", {
+        description: "A regra foi salva para a classificação selecionada.",
+      });
+    } catch {
+      toast.error("Não foi possível cadastrar a regra", {
+        description: "Verifique os dados informados e tente novamente.",
+      });
+    } finally {
+      setSalvando(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -93,6 +152,66 @@ function RegrasClassificacao() {
             <ResumoCard label="Sem regra ativa" value={semRegraAtiva} descricao="Classificações que exigem atenção" destaque="destructive" />
             <ResumoCard label="Regras ambíguas" value={regrasAmbiguas} descricao="Mais de uma regra ativa vinculada" destaque={regrasAmbiguas > 0 ? "destructive" : "success"} />
           </div>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              Cadastrar regra de classificação
+            </h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              Selecione uma classificação já importada e defina a categoria livremente. Nenhum dado do histórico semanal será alterado.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="classificacao-regra" className="text-sm font-semibold">
+                Classificação existente
+              </Label>
+              <Select value={classificacaoSelecionada} onValueChange={setClassificacaoSelecionada}>
+                <SelectTrigger id="classificacao-regra">
+                  <SelectValue placeholder="Selecione uma classificação" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classificacoesParaCadastro.map((item) => (
+                    <SelectItem key={item.classification} value={item.classification}>
+                      {item.classification}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="categoria-regra" className="text-sm font-semibold">
+                Categoria
+              </Label>
+              <Input
+                id="categoria-regra"
+                value={categoria}
+                onChange={(event) => setCategoria(event.target.value)}
+                placeholder="Digite a categoria"
+              />
+            </div>
+
+            <div className="flex h-9 items-center justify-between gap-3 rounded-md border border-input px-3 sm:justify-start">
+              <Label htmlFor="regra-ativa" className="text-sm font-semibold">
+                Regra ativa
+              </Label>
+              <Switch id="regra-ativa" checked={ativa} onCheckedChange={setAtiva} />
+            </div>
+
+            <Button type="button" disabled={salvando || classificacoesParaCadastro.length === 0} onClick={() => void cadastrarRegra()}>
+              {salvando ? "Salvando…" : "Cadastrar regra"}
+            </Button>
+          </div>
+
+          {classificacoesParaCadastro.length === 0 && !isLoading ? (
+            <p className="mt-3 text-sm font-medium text-muted-foreground">
+              Importe classificações no histórico semanal antes de cadastrar uma regra.
+            </p>
+          ) : null}
         </section>
 
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">

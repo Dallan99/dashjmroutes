@@ -68,6 +68,20 @@ export type WeeklyClassificationSurvey = {
   category: string | null;
 };
 
+export async function criarRegraClassificacao(params: {
+  classification: string;
+  category: string;
+  active: boolean;
+}) {
+  const { error } = await supabase.from("classification_rules").insert({
+    classification: params.classification,
+    category: params.category,
+    active: params.active,
+  });
+
+  if (error) throw error;
+}
+
 export function normalizarBase(base: string | null | undefined) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
 }
