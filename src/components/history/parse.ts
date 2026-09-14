@@ -1,14 +1,22 @@
 import * as XLSX from "xlsx";
 
 export const CAMPOS_INTERNOS = [
-  { key: "semana", label: "Semana (ex. W33)", required: true },
-  { key: "ano", label: "Ano", required: false },
-  { key: "base", label: "Base", required: true },
-  { key: "categoria", label: "Categoria / Descrição do gasto", required: false },
-  { key: "descricao", label: "Descrição detalhada", required: false },
-  { key: "quantidade", label: "Quantidade", required: false },
-  { key: "valor", label: "Valor (R$)", required: true },
-  { key: "observacao", label: "Observação", required: false },
+  { key: "base", label: "Base", required: false },
+  { key: "service", label: "Serviço", required: false },
+  { key: "package_id", label: "ID do pacote", required: false },
+  { key: "route_id", label: "ID da rota", required: false },
+  { key: "driver", label: "Motorista", required: false },
+  { key: "description", label: "Descrição", required: false },
+  { key: "event_date", label: "Data do evento", required: false },
+  { key: "amount", label: "Valor (R$)", required: false },
+  { key: "operational_status", label: "Status operacional", required: false },
+  { key: "classification", label: "Classificação", required: false },
+  { key: "decision", label: "Decisão", required: false },
+  { key: "evidence_url", label: "URL de evidência", required: false },
+  { key: "semana", label: "Semana (legado / sugestão)", required: false },
+  { key: "ano", label: "Ano (legado / sugestão)", required: false },
+  { key: "categoria", label: "Categoria (legado)", required: false },
+  { key: "valor", label: "Valor (legado)", required: false },
 ] as const;
 
 export type CampoInterno = (typeof CAMPOS_INTERNOS)[number]["key"];
@@ -35,14 +43,22 @@ const norm = (v: string) =>
     .trim();
 
 const PALAVRAS: Record<CampoInterno, string[]> = {
+  base: ["base", "unidade", "filial", "ssp", "site", "cd"],
+  service: ["service", "servico", "tipo de servico"],
+  package_id: ["id do pacote", "package id", "package_id", "pacote"],
+  route_id: ["id da rota", "route id", "route_id", "rota"],
+  driver: ["motorista", "driver", "condutor"],
+  description: ["descricao do item", "descricao", "detalhe", "item", "ocorrencia"],
+  event_date: ["data do insucesso", "data do evento", "event date", "data"],
+  amount: ["r$", "amount", "valor", "custo", "perda", "gasto", "total"],
+  operational_status: ["status operacional", "operational status", "status"],
+  classification: ["classificacao", "classification", "categoria", "grupo", "motivo"],
+  decision: ["decisao", "decision"],
+  evidence_url: ["url de evidencia", "evidence url", "evidencia", "link"],
   semana: ["semana", "week", "wk", "w"],
   ano: ["ano", "year", "exercicio"],
-  base: ["base", "unidade", "filial", "ssp", "site", "cd"],
-  categoria: ["categoria", "tipo", "classificacao", "grupo", "motivo", "descricao do gasto"],
-  descricao: ["descricao", "detalhe", "item", "produto", "ocorrencia"],
-  quantidade: ["quantidade", "qtd", "qtde", "volume", "pecas"],
+  categoria: ["categoria", "tipo", "classificacao", "grupo", "motivo"],
   valor: ["valor", "custo", "perda", "gasto", "total", "r$", "amount"],
-  observacao: ["observacao", "obs", "comentario", "nota"],
 };
 
 export function assinaturaCabecalhos(headers: string[]) {
@@ -112,23 +128,50 @@ export function normalizarSemana(valor: unknown): string | null {
 }
 
 export type LinhaValida = {
-  week_label: string;
-  year: number;
-  base: string;
-  category: string | null;
+  base: string | null;
+  service: string | null;
+  package_id: string | null;
+  route_id: string | null;
+  driver: string | null;
   description: string | null;
-  quantity: number | null;
-  amount: number;
-  note: string | null;
-  extra: Record<string, unknown>;
+  event_date: string | null;
+  amount: number | null;
+  operational_status: string | null;
+  classification: string | null;
+  decision: string | null;
+  evidence_url: string | null;
+  extra_data: Record<string, unknown>;
 };
 
 export type LinhaRejeitada = { linha: number; motivo: string };
 
+const texto = (valor: unknown) =>
+  valor === null || valor === undefined || String(valor).trim() === "" ? null : String(valor).trim();
+
+export function normalizarData(valor: unknown): string | null {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date && !Number.isNaN(valor.getTime())) return valor.toISOString().slice(0, 10);
+  if (typeof valor === "number" && valor > 0) {
+    const data = XLSX.SSF.parse_date_code(valor);
+    if (data) return `${data.y}-${String(data.m).padStart(2, "0")}-${String(data.d).padStart(2, "0")}`;
+  }
+  const bruto = String(valor).trim();
+  const brasileira = bruto.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (brasileira) {
+    const [, dia, mes, ano] = brasileira;
+    const data = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)));
+    if (data.getUTCFullYear() === Number(ano) && data.getUTCMonth() === Number(mes) - 1 && data.getUTCDate() === Number(dia)) {
+      return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    }
+    return null;
+  }
+  const data = new Date(bruto);
+  return Number.isNaN(data.getTime()) ? null : data.toISOString().slice(0, 10);
+}
+
 export function transformarLinhas(
   rows: Record<string, unknown>[],
   mapping: Mapping,
-  padrao: { semana: string; ano: number },
 ): { validas: LinhaValida[]; rejeitadas: LinhaRejeitada[] } {
   const validas: LinhaValida[] = [];
   const rejeitadas: LinhaRejeitada[] = [];
@@ -138,37 +181,35 @@ export function transformarLinhas(
   };
 
   rows.forEach((row, i) => {
-    const vazia = Object.values(row).every((v) => v === null || v === "");
-    if (vazia) return;
-
-    const semana = normalizarSemana(get(row, "semana")) ?? padrao.semana;
-    const anoBruto = get(row, "ano");
-    const ano = anoBruto ? Number(String(anoBruto).match(/\d{4}/)?.[0] ?? padrao.ano) : padrao.ano;
-    const base = get(row, "base");
-    const valor = parseValor(get(row, "valor"));
-
-    if (!semana) return rejeitadas.push({ linha: i + 2, motivo: "Semana ausente ou inválida" });
-    if (!base || String(base).trim() === "")
-      return rejeitadas.push({ linha: i + 2, motivo: "Base ausente" });
-    if (valor === null) return rejeitadas.push({ linha: i + 2, motivo: "Valor inválido" });
-
+    if (Object.values(row).every((v) => v === null || v === "")) return;
     const mapeadas = new Set(Object.values(mapping).filter(Boolean) as string[]);
-    const extra: Record<string, unknown> = {};
-    Object.entries(row).forEach(([k, v]) => {
-      if (!mapeadas.has(k) && v !== null && v !== "") extra[k] = v instanceof Date ? v.toISOString() : v;
+    const extra_data: Record<string, unknown> = {};
+    Object.entries(row).forEach(([chave, valor]) => {
+      if (!mapeadas.has(chave) && valor !== null && valor !== "") {
+        extra_data[chave] = valor instanceof Date ? valor.toISOString() : valor;
+      }
     });
 
-    const qtd = parseValor(get(row, "quantidade"));
+    const event_date = normalizarData(get(row, "event_date"));
+    if (get(row, "event_date") && !event_date) {
+      rejeitadas.push({ linha: i + 2, motivo: "Data do evento inválida" });
+      return;
+    }
+    const amount = parseValor(get(row, "amount") ?? get(row, "valor"));
     validas.push({
-      week_label: semana,
-      year: Number.isFinite(ano) ? ano : padrao.ano,
-      base: String(base).trim(),
-      category: get(row, "categoria") ? String(get(row, "categoria")).trim() : null,
-      description: get(row, "descricao") ? String(get(row, "descricao")).trim() : null,
-      quantity: qtd,
-      amount: valor,
-      note: get(row, "observacao") ? String(get(row, "observacao")).trim() : null,
-      extra,
+      base: texto(get(row, "base")),
+      service: texto(get(row, "service")),
+      package_id: texto(get(row, "package_id")),
+      route_id: texto(get(row, "route_id")),
+      driver: texto(get(row, "driver")),
+      description: texto(get(row, "description")),
+      event_date,
+      amount,
+      operational_status: texto(get(row, "operational_status")),
+      classification: texto(get(row, "classification") ?? get(row, "categoria")),
+      decision: texto(get(row, "decision")),
+      evidence_url: texto(get(row, "evidence_url")),
+      extra_data,
     });
   });
 
