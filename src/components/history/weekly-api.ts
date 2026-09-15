@@ -100,6 +100,7 @@ export const BASE_XPT_POR_SERVICO: Record<string, keyof typeof OPERACOES_OFICIAI
   SSP20: "ESP15",
   SSP15: "ESP16",
   SSP34: "ESP17",
+  SSP56: "ESP17",
   SSP25: "ESP18",
 };
 
