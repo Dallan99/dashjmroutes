@@ -57,12 +57,32 @@ import {
   useWeeklyItems,
   useWeeklyItemsForImports,
   useWeekNotes,
-  normalizarBase,
   nomeOperacao,
-  rotuloOperacao,
-  tipoOperacao,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
+
+/** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
+const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
+
+/** Extrai o código da base a partir de textos como "ESP15 - XPT Ibiúna". */
+export function normalizarCodigoBase(base: string | null | undefined) {
+  if (!base) return "";
+  const texto = base.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+  const match = texto.match(/\b([A-Z]{2,4})\s*-?\s*(\d{1,3})\b/);
+  return match ? `${match[1]}${match[2]}` : texto;
+}
+
+/** Classificação oficial do tipo de operação, baseada apenas no código da base. */
+export function getOperationType(baseCode: string | null | undefined): "XPT" | "SERVICES" {
+  return XPT_CODES.has(normalizarCodigoBase(baseCode)) ? "XPT" : "SERVICES";
+}
+
+function rotuloBase(base: string | null | undefined) {
+  const codigo = normalizarCodigoBase(base);
+  if (!codigo || codigo === "SEM BASE") return "Sem base";
+  const nome = nomeOperacao(codigo);
+  return nome ? `${codigo} · ${nome}` : `${codigo} · Não cadastrada`;
+}
 
 interface SavingsViewProps {
   selecionadas: string[];
@@ -118,7 +138,7 @@ export function SavingsView({
   }, [importacoes]);
 
   const basesDisponiveis = useMemo(() => {
-    const naSemana = new Set(itensSemana.map((i) => normalizarBase(i.base)).filter(Boolean));
+    const naSemana = new Set(itensSemana.map((i) => normalizarCodigoBase(i.base)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
     const uniao = Array.from(new Set([...oficiais, ...naSemana]));
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -126,18 +146,18 @@ export function SavingsView({
 
   const itensFiltrados = useMemo(() => {
     return itensSemana.filter((item) => {
-      const b = normalizarBase(item.base);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada || item.base?.trim() === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || tipoOperacao(item.base) === tipoSelecionado;
+      const b = normalizarCodigoBase(item.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensSemana]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
-      const b = normalizarBase(item.base);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada || item.base?.trim() === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || tipoOperacao(item.base) === tipoSelecionado;
+      const b = normalizarCodigoBase(item.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensHistorico]);
@@ -146,6 +166,15 @@ export function SavingsView({
     () => calcularSaudeOperacional(importacoes, itensHistorico, regrasAtivas, anoRanking ?? undefined),
     [anoRanking, importacoes, itensHistorico, regrasAtivas],
   );
+
+  const rankingFiltrado = useMemo(() => {
+    return resumoSaude.operacoes.filter((op) => {
+      const codigo = normalizarCodigoBase(op.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || codigo === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(op.base) === tipoSelecionado;
+      return matchBase && matchTipo;
+    });
+  }, [baseSelecionada, resumoSaude.operacoes, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const totaisPorImportacao = new Map(
@@ -172,26 +201,27 @@ export function SavingsView({
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
     const totalGeral = validos.reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalXpt = validos.filter((i) => tipoOperacao(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalServices = validos.filter((i) => tipoOperacao(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalXpt = validos.filter((i) => getOperationType(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalServices = validos.filter((i) => getOperationType(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
 
     const mediaSemanal = resumoSaude.mediaGeral ?? (importacoes.length > 0 ? totalGeral / importacoes.length : 0);
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
-      const b = normalizarBase(item.base) || "Sem base";
+      const b = normalizarCodigoBase(item.base) || "Sem base";
       porBase.set(b, (porBase.get(b) ?? 0) + (item.amount ?? 0));
     }
     const listaOrdenada = Array.from(porBase.entries())
       .map(([codigo, total]) => ({
         codigo,
         nome: nomeOperacao(codigo) ?? (codigo === "Sem base" ? "Sem base" : "Não cadastrada"),
-        rotulo: rotuloOperacao(codigo),
-        tipo: tipoOperacao(codigo),
+        rotulo: rotuloBase(codigo),
+        tipo: getOperationType(codigo),
         total,
         pct: totalGeral > 0 ? (total / totalGeral) * 100 : 0,
       }))
       .sort((a, b) => b.total - a.total);
+
 
     const maiorOfensor = listaOrdenada[0] ?? null;
     const top5 = listaOrdenada.slice(0, 5);
@@ -246,10 +276,10 @@ export function SavingsView({
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       {/* 1. SIDEBAR ESCURA À ESQUERDA */}
-      <aside className="w-full shrink-0 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-100 shadow-xl lg:w-64 xl:w-72 lg:sticky lg:top-6">
-        <div className="mb-5 flex items-center justify-between border-b border-zinc-800/80 pb-4">
+      <aside className="w-full shrink-0 rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-zinc-100 shadow-xl lg:w-[172px] lg:sticky lg:top-4">
+        <div className="mb-3 flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
           <div className="flex items-center gap-2">
             <Filter className="size-4 text-amber-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300">Filtros Savings</h2>
@@ -259,7 +289,7 @@ export function SavingsView({
           </span>
         </div>
 
-        <div className="space-y-4 text-xs">
+        <div className="space-y-3 text-xs">
           {/* Filtro: Ano */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Ano</Label>
@@ -293,7 +323,7 @@ export function SavingsView({
                 </SelectItem>
                 {basesDisponiveis.map((base) => (
                   <SelectItem key={base} value={base} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                    {rotuloOperacao(base)}
+                    {rotuloBase(base)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -340,16 +370,16 @@ export function SavingsView({
           </div>
 
           {/* Botão Importar semana */}
-          <div className="border-t border-zinc-800/80 pt-4">
+          <div className="border-t border-zinc-800/80 pt-3">
             <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
           </div>
         </div>
       </aside>
 
       {/* 2. ÁREA PRINCIPAL CLARA */}
-      <main className="flex-1 min-w-0 space-y-6">
+      <main className="flex-1 min-w-0 space-y-4">
         {/* 3. QUATRO CARDS NO TOPO */}
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <KpiCard
             label="Total de descontos"
             value={brl(dadosFinanceiros.totalGeral)}
@@ -385,8 +415,8 @@ export function SavingsView({
         </section>
 
         {/* 4. ÁREA GRANDE: DESCONTOS POR SEMANA */}
-        <section className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
+        <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Descontos por semana</h2>
               <p className="text-xs font-medium text-muted-foreground">Evolução real dos valores descontados em todas as importações concluídas</p>
@@ -396,7 +426,7 @@ export function SavingsView({
             </span>
           </div>
 
-          <div className="mt-4 h-[290px] w-full">
+          <div className="mt-3 h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={evolucaoSemanal} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.6} />
@@ -426,9 +456,9 @@ export function SavingsView({
         </section>
 
         {/* 5. DOIS BLOCOS MENORES: XPT x SERVICES & TOP 5 OFENSORES */}
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-3 lg:grid-cols-2">
           {/* Bloco: XPT x SERVICES */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm flex flex-col justify-between">
+          <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div className="flex items-center gap-2">
                 <PieChart className="size-4 text-primary" />
@@ -467,7 +497,7 @@ export function SavingsView({
           </div>
 
           {/* Bloco: Top 5 ofensores */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="size-4 text-destructive" />
@@ -501,9 +531,9 @@ export function SavingsView({
         </section>
 
         {/* 6. PARTE INFERIOR: BASES MAIS OFENSORAS & RANKING ANUAL */}
-        <section className="grid gap-6 lg:grid-cols-2">
+        <section className="grid gap-3 lg:grid-cols-2">
           {/* Tabela: Bases mais ofensoras */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Bases mais ofensoras</h3>
@@ -547,7 +577,7 @@ export function SavingsView({
           </div>
 
           {/* Tabela: Ranking anual */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Ranking anual</h3>
@@ -568,11 +598,11 @@ export function SavingsView({
                   </tr>
                 </thead>
                 <tbody>
-                  {resumoSaude.operacoes.map((op, idx) => (
+                  {rankingFiltrado.map((op, idx) => (
                     <tr key={op.base} className="border-t border-border/60 hover:bg-muted/30">
                       <td className="px-3 py-2 font-extrabold text-primary tabular-nums">{idx + 1}º</td>
-                      <td className="px-3 py-2 font-semibold truncate max-w-[130px]" title={rotuloOperacao(op.base)}>
-                        {rotuloOperacao(op.base)}
+                      <td className="px-3 py-2 font-semibold truncate max-w-[130px]" title={rotuloBase(op.base)}>
+                        {rotuloBase(op.base)}
                       </td>
                       <td className="px-3 py-2 text-right font-bold tabular-nums">{brl(op.mediaSemanal)}</td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">{op.percentualSaude.toFixed(0)}%</td>
@@ -590,7 +620,7 @@ export function SavingsView({
                       </td>
                     </tr>
                   ))}
-                  {resumoSaude.operacoes.length === 0 && (
+                  {rankingFiltrado.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
                         Nenhum registro classificado para o ranking anual deste ano.
@@ -684,9 +714,9 @@ export function SavingsView({
                       </tr>
                     </thead>
                     <tbody>
-                      {resumoSaude.operacoes.map((op) => (
+                      {rankingFiltrado.map((op) => (
                         <tr key={op.base} className="border-t border-border hover:bg-muted/20">
-                          <td className="px-3 py-2 font-semibold">{rotuloOperacao(op.base)}</td>
+                          <td className="px-3 py-2 font-semibold">{rotuloBase(op.base)}</td>
                           <td className="px-3 py-2 text-right font-extrabold tabular-nums">{brl(op.mediaSemanal)}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{op.semanasAvaliadas}</td>
                           <td className="px-3 py-2 text-right"><span className={cn("px-2 py-0.5 rounded-full font-semibold text-[10px]", op.statusAtual === "Saudável" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>{op.statusAtual}</span></td>
