@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart,
@@ -26,7 +27,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { brl, brlCurto } from "@/components/dashboard/data";
+import { brl, brlCurto, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
