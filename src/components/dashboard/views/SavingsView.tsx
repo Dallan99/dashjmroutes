@@ -83,13 +83,19 @@ export function normalizarCodigoBase(base: string | null | undefined) {
   return match ? `${match[1]}${match[2]}` : texto;
 }
 
+function codigoSemBase(baseCode: string | null | undefined) {
+  return ["", "SEM BASE", "-", "0", "NAO", "NÃO"].includes(normalizarCodigoBase(baseCode));
+}
+
 /** Classificação oficial do tipo de operação, baseada apenas no código da base. */
-export function getOperationType(baseCode: string | null | undefined): "XPT" | "SERVICES" {
+export function getOperationType(baseCode: string | null | undefined): "XPT" | "SERVICES" | "SEM BASE" {
+  if (codigoSemBase(baseCode)) return "SEM BASE";
   return XPT_CODES.has(normalizarCodigoBase(baseCode)) ? "XPT" : "SERVICES";
 }
 
 function codigoOperacao(base: string | null | undefined, service?: string | null) {
-  return normalizarCodigoBase(resolverBaseOperacao(base, service));
+  const codigo = normalizarCodigoBase(resolverBaseOperacao(base, service));
+  return codigoSemBase(codigo) ? "" : codigo;
 }
 
 function rotuloBase(base: string | null | undefined, service?: string | null) {
@@ -301,6 +307,9 @@ export function SavingsView({
     const totalServices = validos
       .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SERVICES")
       .reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalSemBase = validos
+      .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SEM BASE")
+      .reduce((s, i) => s + (i.amount ?? 0), 0);
 
     const mediaSemanal = importacoes.length > 0 ? totalGeral / importacoes.length : 0;
 
@@ -328,6 +337,7 @@ export function SavingsView({
       totalGeral,
       totalXpt,
       totalServices,
+      totalSemBase,
       mediaSemanal,
       maiorOfensor,
       top5,
@@ -339,7 +349,7 @@ export function SavingsView({
 
   const detalhamentoPorOrigem = useMemo(() => {
     const validos = itensFiltrados.filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount));
-    const porOrigem = new Map<string, { total: number; operacao: string; tipo: "XPT" | "SERVICES" }>();
+    const porOrigem = new Map<string, { total: number; operacao: string; tipo: ReturnType<typeof getOperationType> }>();
 
     for (const item of validos) {
       const origem = rotuloOrigem(item);
@@ -512,7 +522,7 @@ export function SavingsView({
           <KpiCard
             label="Total de descontos"
             value={brl(dadosFinanceiros.totalGeral)}
-            hint={`XPT: ${brl(dadosFinanceiros.totalXpt)} · SERVICES: ${brl(dadosFinanceiros.totalServices)}`}
+            hint={`XPT: ${brl(dadosFinanceiros.totalXpt)} · SERVICES: ${brl(dadosFinanceiros.totalServices)} · Sem base: ${brl(dadosFinanceiros.totalSemBase)}`}
             icon={Wallet}
             tone="loss"
             onClick={() => setModalDetalhe("total")}
@@ -777,7 +787,7 @@ export function SavingsView({
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2 text-xs">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <div className="rounded-lg border border-border bg-card p-3">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Total</span>
                     <p className="text-base font-extrabold text-destructive tabular-nums mt-0.5">{brl(dadosFinanceiros.totalGeral)}</p>
@@ -789,6 +799,10 @@ export function SavingsView({
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">SERVICES</span>
                     <p className="text-base font-extrabold text-foreground tabular-nums mt-0.5">{brl(dadosFinanceiros.totalServices)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/30 p-3">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Sem base</span>
+                    <p className="text-base font-extrabold text-foreground tabular-nums mt-0.5">{brl(dadosFinanceiros.totalSemBase)}</p>
                   </div>
                 </div>
                 <div className="rounded-lg border border-border overflow-hidden">
