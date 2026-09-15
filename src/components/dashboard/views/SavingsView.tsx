@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -21,6 +22,7 @@ import {
   Filter,
   PieChart,
   ShieldAlert,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Upload,
@@ -44,7 +46,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription as AlertDialogMessage,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
+import { SavingsAccess, useSavingsSession } from "@/components/auth/SavingsAccess";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   calcularSaudeOperacional,
   groupWeeklyItemsByActiveClassification,
@@ -97,11 +112,28 @@ interface SavingsViewProps {
 }
 
 export function SavingsView({
+  ...props
+}: SavingsViewProps) {
+  const { session, loading } = useSavingsSession();
+
+  if (loading) {
+    return <p className="py-10 text-center text-sm font-medium text-muted-foreground">Verificando acesso ao Dashboard Savings…</p>;
+  }
+
+  if (!session) {
+    return <SavingsAccess />;
+  }
+
+  return <SavingsDataView {...props} />;
+}
+
+function SavingsDataView({
   selecionadas,
   setSelecionadas,
   eficacia,
   setEficacia,
 }: SavingsViewProps) {
+  const queryClient = useQueryClient();
   const {
     data: importacoes = [],
     isLoading: carregandoImportacoes,
@@ -114,6 +146,8 @@ export function SavingsView({
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [excluindoSemana, setExcluindoSemana] = useState(false);
 
   useEffect(() => {
     if (importacoes.length > 0) {
@@ -136,6 +170,49 @@ export function SavingsView({
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
   const { data: regrasAtivas = [], isLoading: carregandoRegras } = useActiveClassificationRules();
+
+  const excluirSemana = async () => {
+    if (!importacaoAtual) return;
+
+    setExcluindoSemana(true);
+    try {
+      const { error: erroObservacoes } = await supabase
+        .from("week_notes")
+        .delete()
+        .eq("import_id", importacaoAtual.id);
+      if (erroObservacoes) throw erroObservacoes;
+
+      const { error: erroItens } = await supabase
+        .from("weekly_items")
+        .delete()
+        .eq("import_id", importacaoAtual.id);
+      if (erroItens) throw erroItens;
+
+      const { error: erroImportacao } = await supabase
+        .from("weekly_imports")
+        .delete()
+        .eq("id", importacaoAtual.id);
+      if (erroImportacao) throw erroImportacao;
+
+      setImportacaoSelecionada("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
+        queryClient.invalidateQueries({ queryKey: ["week_notes"] }),
+      ]);
+      toast.success(`${importacaoAtual.week_code} excluída`, {
+        description: "A semana foi removida e já pode ser importada novamente.",
+      });
+    } catch (error) {
+      console.error("[Savings] Falha ao excluir semana:", error);
+      toast.error("Não foi possível excluir a semana", {
+        description: "Nenhuma nova importação foi criada. Tente novamente.",
+      });
+    } finally {
+      setExcluindoSemana(false);
+      setConfirmarExclusao(false);
+    }
+  };
 
   const anosDisponiveis = useMemo(() => {
     const anos = Array.from(new Set(importacoes.map((i) => i.year))).sort((a, b) => b - a);
@@ -382,6 +459,15 @@ export function SavingsView({
           <div className="border-t border-zinc-800/80 pt-3">
             <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
           </div>
+          <button
+            type="button"
+            onClick={() => setConfirmarExclusao(true)}
+            disabled={!importacaoAtual || excluindoSemana}
+            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[11px] font-semibold text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="size-3.5" />
+            Excluir semana
+          </button>
         </div>
       </aside>
 
@@ -811,6 +897,22 @@ export function SavingsView({
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={confirmarExclusao} onOpenChange={setConfirmarExclusao}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {importacaoAtual?.week_code}?</AlertDialogTitle>
+            <AlertDialogMessage>
+              Esta ação remove permanentemente os lançamentos e observações de {importacaoAtual?.week_code} ({importacaoAtual?.year}). Depois, você poderá importar a planilha novamente.
+            </AlertDialogMessage>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindoSemana}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={excluirSemana} disabled={excluindoSemana} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {excluindoSemana ? "Excluindo…" : "Excluir semana"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
