@@ -135,7 +135,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     () =>
       itensSemana.filter(
         (item) =>
-          baseSelecionada === "__todas_as_bases__" || item.base?.trim() === baseSelecionada,
+          baseSelecionada === "__todas_as_bases__" ||
+          normalizarBase(item.base) === baseSelecionada ||
+          item.base?.trim() === baseSelecionada,
       ),
     [baseSelecionada, itensSemana],
   );
@@ -149,7 +151,9 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
     () =>
       itensHistorico.filter(
         (item) =>
-          baseSelecionada === "__todas_as_bases__" || item.base?.trim() === baseSelecionada,
+          baseSelecionada === "__todas_as_bases__" ||
+          normalizarBase(item.base) === baseSelecionada ||
+          item.base?.trim() === baseSelecionada,
       ),
     [baseSelecionada, itensHistorico],
   );
@@ -223,7 +227,8 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       observacoesSemana.filter(
         (observacao) =>
           !normalizarBase(observacao.base) ||
-          (baseSelecionada !== "__todas_as_bases__" && normalizarBase(observacao.base) === baseSelecionada),
+          baseSelecionada === "__todas_as_bases__" ||
+          normalizarBase(observacao.base) === baseSelecionada,
       ),
     [baseSelecionada, observacoesSemana],
   );
@@ -314,10 +319,12 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
       const comJMRoutes = referencia?.comJMRoutes ?? false;
       const ativa = !semBase && (comJMRoutes || selecionadas.includes(nome));
       const projetado = ativa ? perdaProjetada(atual, fator) : atual;
+      const rotuloExibicao = semBase ? "Sem base" : rotuloOperacao(nome);
 
       return {
         id: nome,
-        nome,
+        nome: rotuloExibicao,
+        codigoBase: nome,
         semBase,
         comJMRoutes,
         ativa,
@@ -767,7 +774,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
               <div className="rounded-lg border border-border bg-muted/40 p-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bases identificadas</p><p className="mt-2 text-xl font-extrabold tabular-nums">{comparativoSemanal.porBase.filter((item) => item.atual > 0).length}</p><p className="text-sm font-medium text-muted-foreground">Anterior: {comparativoSemanal.porBase.filter((item) => item.anterior > 0).length}</p></div>
             </div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-3 py-2">Base</th><th className="px-3 py-2 text-right">Semana atual</th><th className="px-3 py-2 text-right">Anterior</th></tr></thead><tbody>{comparativoSemanal.porBase.map((item) => <tr key={item.base} className="border-t border-border"><td className="px-3 py-2 font-semibold">{item.base}</td><td className="px-3 py-2 text-right tabular-nums">{item.atual}</td><td className="px-3 py-2 text-right tabular-nums">{item.anterior}</td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-3 py-2">Base</th><th className="px-3 py-2 text-right">Semana atual</th><th className="px-3 py-2 text-right">Anterior</th></tr></thead><tbody>{comparativoSemanal.porBase.map((item) => <tr key={item.base} className="border-t border-border"><td className="px-3 py-2 font-semibold">{rotuloOperacao(item.base)}</td><td className="px-3 py-2 text-right tabular-nums">{item.atual}</td><td className="px-3 py-2 text-right tabular-nums">{item.anterior}</td></tr>)}</tbody></table></div>
               <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground"><th className="px-3 py-2">Classificação</th><th className="px-3 py-2 text-right">Semana atual</th><th className="px-3 py-2 text-right">Anterior</th></tr></thead><tbody>{comparativoSemanal.porClassificacao.map((item) => <tr key={item.classificacao} className="border-t border-border"><td className="px-3 py-2 font-semibold">{item.classificacao}</td><td className="px-3 py-2 text-right tabular-nums">{item.atual}</td><td className="px-3 py-2 text-right tabular-nums">{item.anterior}</td></tr>)}</tbody></table></div>
             </div>
           </>
@@ -858,7 +865,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         <div className="mt-4 space-y-3">
           {observacoesVisiveis.length > 0 ? observacoesVisiveis.map((observacao) => (
             <div key={observacao.id} className="rounded-lg border border-border bg-muted/40 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-primary">{normalizarBase(observacao.base) || "Observação geral"}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{rotuloOperacao(observacao.base)}</p>
               <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed">{observacao.note}</p>
             </div>
           )) : <p className="text-sm font-medium text-muted-foreground">Não há observações registradas para este filtro.</p>}
@@ -998,7 +1005,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
                   <td className="px-5 py-3 font-semibold">
                     <Link
                       to="/base/$baseId"
-                      params={{ baseId: l.id }}
+                      params={{ baseId: l.codigoBase }}
                       search={{ eficacia }}
                       className="hover:text-primary hover:underline"
                     >

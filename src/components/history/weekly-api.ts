@@ -93,13 +93,17 @@ export const OPERACOES_OFICIAIS = {
   SSP6: "Mauá",
 } as const;
 
-export function nomeOperacao(base: string) {
-  return OPERACOES_OFICIAIS[base as keyof typeof OPERACOES_OFICIAIS] ?? null;
+export function nomeOperacao(base: string | null | undefined) {
+  if (!base) return null;
+  const chave = normalizarBase(base);
+  return OPERACOES_OFICIAIS[chave as keyof typeof OPERACOES_OFICIAIS] ?? null;
 }
 
-export function rotuloOperacao(base: string) {
-  const nome = nomeOperacao(base);
-  return nome ? `${base} · ${nome}` : base;
+export function rotuloOperacao(base: string | null | undefined) {
+  if (!base || !base.trim() || base === "Sem base") return "Sem base";
+  const chave = normalizarBase(base);
+  const nome = nomeOperacao(chave);
+  return nome ? `${chave} · ${nome}` : `${base.trim()} · Não cadastrada`;
 }
 
 /** Quantidade mínima reservada para futura elegibilidade de premiação. */
@@ -303,11 +307,22 @@ export function useWeeklyClassificationsSurvey() {
   return useQuery({
     queryKey: ["weekly_items", "classification-survey"],
     queryFn: async (): Promise<WeeklyClassificationSurvey[]> => {
+      const { data: currentImports, error: importsErr } = await supabase
+        .from("weekly_imports")
+        .select("id")
+        .eq("status", "completed")
+        .eq("is_current", true);
+
+      if (importsErr) throw importsErr;
+      const validImportIds = (currentImports ?? []).map((i) => i.id);
+      if (validImportIds.length === 0) return [];
+
       const [{ data: items, error: itemsError }, { data: rules, error: rulesError }] =
         await Promise.all([
           supabase
             .from("weekly_items")
-            .select("import_id, base, classification"),
+            .select("import_id, base, classification")
+            .in("import_id", validImportIds),
           supabase
             .from("classification_rules")
             .select("id, classification, category, active, created_at"),

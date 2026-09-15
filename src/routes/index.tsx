@@ -42,14 +42,14 @@ function Dashboard() {
   const view = search.view || "savings";
 
   const criticas = BASES.filter((b) => !b.comJMRoutes);
-  const initialBases = search.bases ? search.bases.split(",") : criticas.map((b) => b.id);
+  const initialBases = view !== "savings" && search.bases ? search.bases.split(",") : criticas.map((b) => b.id);
   
   const [selecionadas, setSelecionadas] = useState<string[]>(initialBases);
-  const [eficacia, setEficacia] = useState(search.eficacia ?? 100);
+  const [eficacia, setEficacia] = useState(view !== "savings" ? (search.eficacia ?? 100) : 100);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Mão de Obra Simulation State
-  const initialLabor: LaborPremises = search.labor 
+  const initialLabor: LaborPremises = view !== "savings" && search.labor 
     ? JSON.parse(decodeURIComponent(search.labor)) 
     : MO_CONFIG.VALORES_PADRAO;
   const [laborPremises, setLaborPremises] = useState<LaborPremises>(initialLabor);
@@ -64,8 +64,16 @@ function Dashboard() {
     }
   }, [isDarkMode]);
 
-  // Sync state to URL
+  // Sync state to URL (ignora parâmetros legados de simulação na visão real de savings)
   useEffect(() => {
+    if (view === "savings") {
+      navigate({
+        search: () => ({ view: "savings" }),
+        replace: true,
+      } as any);
+      return;
+    }
+
     navigate({
       search: (prev: any) => ({
         ...prev,
@@ -79,9 +87,15 @@ function Dashboard() {
   }, [selecionadas, eficacia, view, laborPremises, navigate]);
 
   const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
-    navigate({
-      search: (prev: any) => ({ ...prev, view: newView }),
-    } as any);
+    if (newView === "savings") {
+      navigate({
+        search: () => ({ view: "savings" }),
+      } as any);
+    } else {
+      navigate({
+        search: (prev: any) => ({ ...prev, view: newView }),
+      } as any);
+    }
   };
 
   const currentSavingSemanal = () => {
