@@ -190,36 +190,45 @@ export function WeeklyImportDialog({
       if (erroImportacao) throw erroImportacao;
 
       importId = importacao.id;
-      const { data: mapeamentos, error: erroMapeamentos } = await supabase
-        .from("service_base_mappings")
-        .select("service, base")
-        .eq("active", true);
-      if (erroMapeamentos) throw erroMapeamentos;
-
-      const basesPorServico = new Map(
-        (mapeamentos ?? []).map((item) => [normalizarTexto(item.service), item.base.trim()]),
-      );
+      let basesPorServico = new Map<string, string>();
+      try {
+        const { data: mapeamentos } = await supabase
+          .from("service_base_mappings")
+          .select("service, base")
+          .eq("active", true);
+        if (mapeamentos && Array.isArray(mapeamentos)) {
+          basesPorServico = new Map(
+            mapeamentos
+              .filter((item) => item.service && item.base)
+              .map((item) => [normalizarTexto(item.service), item.base.trim()]),
+          );
+        }
+      } catch (err) {
+        console.warn("[WeeklyImportDialog] service_base_mappings inacessível (não crítico):", err);
+      }
       const itens = resultado.validas.map((linha) => ({
         import_id: importId,
-        base: linha.base ?? basesPorServico.get(normalizarTexto(linha.service)) ?? null,
-        service: linha.service,
-        package_id: linha.package_id,
-        route_id: linha.route_id,
-        driver: linha.driver,
-        description: linha.description,
-        event_date: linha.event_date,
-        amount: linha.amount,
-        operational_status: linha.operational_status,
-        classification: linha.classification,
-        decision: linha.decision,
-        evidence_url: linha.evidence_url,
-        extra_data: linha.extra_data as Json,
+        base: (linha.base ? linha.base.trim() : null) ?? basesPorServico.get(normalizarTexto(linha.service)) ?? null,
+        service: linha.service ?? null,
+        package_id: linha.package_id ?? null,
+        route_id: linha.route_id ?? null,
+        driver: linha.driver ?? null,
+        description: linha.description ?? null,
+        event_date: linha.event_date ?? null,
+        amount: typeof linha.amount === "number" && Number.isFinite(linha.amount) ? linha.amount : null,
+        operational_status: linha.operational_status ?? null,
+        classification: linha.classification ?? null,
+        decision: linha.decision ?? null,
+        evidence_url: linha.evidence_url ?? null,
+        extra_data: (linha.extra_data ?? {}) as Json,
       }));
 
-      for (let indice = 0; indice < itens.length; indice += 400) {
+      const loteTamanho = 200;
+      for (let indice = 0; indice < itens.length; indice += loteTamanho) {
+        const lote = itens.slice(indice, indice + loteTamanho);
         const { error: erroItens } = await supabase
           .from("weekly_items")
-          .insert(itens.slice(indice, indice + 400));
+          .insert(lote as never);
         if (erroItens) throw erroItens;
       }
 
