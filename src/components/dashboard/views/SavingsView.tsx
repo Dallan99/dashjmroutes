@@ -138,7 +138,7 @@ export function SavingsView({
   }, [importacoes]);
 
   const basesDisponiveis = useMemo(() => {
-    const naSemana = new Set(itensSemana.map((i) => normalizarBase(i.base)).filter(Boolean));
+    const naSemana = new Set(itensSemana.map((i) => normalizarCodigoBase(i.base)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
     const uniao = Array.from(new Set([...oficiais, ...naSemana]));
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -146,18 +146,18 @@ export function SavingsView({
 
   const itensFiltrados = useMemo(() => {
     return itensSemana.filter((item) => {
-      const b = normalizarBase(item.base);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada || item.base?.trim() === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || tipoOperacao(item.base) === tipoSelecionado;
+      const b = normalizarCodigoBase(item.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensSemana]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
-      const b = normalizarBase(item.base);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada || item.base?.trim() === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || tipoOperacao(item.base) === tipoSelecionado;
+      const b = normalizarCodigoBase(item.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensHistorico]);
@@ -166,6 +166,15 @@ export function SavingsView({
     () => calcularSaudeOperacional(importacoes, itensHistorico, regrasAtivas, anoRanking ?? undefined),
     [anoRanking, importacoes, itensHistorico, regrasAtivas],
   );
+
+  const rankingFiltrado = useMemo(() => {
+    return resumoSaude.operacoes.filter((op) => {
+      const codigo = normalizarCodigoBase(op.base);
+      const matchBase = baseSelecionada === "__todas_as_bases__" || codigo === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(op.base) === tipoSelecionado;
+      return matchBase && matchTipo;
+    });
+  }, [baseSelecionada, resumoSaude.operacoes, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const totaisPorImportacao = new Map(
@@ -192,26 +201,27 @@ export function SavingsView({
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
     const totalGeral = validos.reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalXpt = validos.filter((i) => tipoOperacao(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalServices = validos.filter((i) => tipoOperacao(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalXpt = validos.filter((i) => getOperationType(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalServices = validos.filter((i) => getOperationType(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
 
     const mediaSemanal = resumoSaude.mediaGeral ?? (importacoes.length > 0 ? totalGeral / importacoes.length : 0);
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
-      const b = normalizarBase(item.base) || "Sem base";
+      const b = normalizarCodigoBase(item.base) || "Sem base";
       porBase.set(b, (porBase.get(b) ?? 0) + (item.amount ?? 0));
     }
     const listaOrdenada = Array.from(porBase.entries())
       .map(([codigo, total]) => ({
         codigo,
         nome: nomeOperacao(codigo) ?? (codigo === "Sem base" ? "Sem base" : "Não cadastrada"),
-        rotulo: rotuloOperacao(codigo),
-        tipo: tipoOperacao(codigo),
+        rotulo: rotuloBase(codigo),
+        tipo: getOperationType(codigo),
         total,
         pct: totalGeral > 0 ? (total / totalGeral) * 100 : 0,
       }))
       .sort((a, b) => b.total - a.total);
+
 
     const maiorOfensor = listaOrdenada[0] ?? null;
     const top5 = listaOrdenada.slice(0, 5);
