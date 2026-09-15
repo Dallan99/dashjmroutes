@@ -6,8 +6,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  Cell,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,14 +18,14 @@ import {
   CircleCheck,
   Clock,
   FileText,
+  Layers,
+  ShieldAlert,
   TrendingDown,
   TrendingUp,
   Wallet,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { BASES, PISO_JMROUTES, brl, brlCurto, perdaProjetada } from "@/components/dashboard/data";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
+import { brl, brlCurto } from "@/components/dashboard/data";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -36,6 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
 import {
   calcularSaudeOperacional,
@@ -50,7 +56,9 @@ import {
   useWeeklyItemsForImports,
   useWeekNotes,
   normalizarBase,
+  nomeOperacao,
   rotuloOperacao,
+  tipoOperacao,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +80,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
   const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
   const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
+  const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
 
   useEffect(() => {
     if (importacoes.length > 0) {
@@ -534,66 +543,378 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
+            {/* CARDS PRINCIPAIS CLICÁVEIS COM SEPARAÇÃO XPT x SERVICES */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais — Histórico semanal</span>
-          <p className="text-sm font-medium text-muted-foreground">Indicadores da semana e da base selecionadas.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Dados reais — Histórico oficial</span>
+            <p className="text-sm font-medium text-muted-foreground">Clique em qualquer card para ver o detalhamento XPT vs SERVICES.</p>
+          </div>
+          <span className="text-xs font-bold text-muted-foreground">XPT (ESP15-18) · SERVICES (demais)</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            id: "total-registros",
-            label: "Total de registros",
-            value: `${itensFiltrados.length}`,
-            hint: "Registros da semana e base selecionadas",
-            icon: FileText,
-            tone: "neutral",
-          },
-          {
-            id: "total-bases",
-            label: "Total de bases",
-            value: `${kpisSavings.totalBases}`,
-            hint: "Bases identificadas no filtro atual",
-            icon: CircleCheck,
-            tone: "neutral",
-          },
-          {
-            id: "valor-total",
-            label: "Valor total",
-            value: brl(kpisSavings.valorTotal),
-            hint: "Soma apenas de valores válidos",
-            icon: Wallet,
-            tone: "highlight",
-          },
-          {
-            id: "registros-classificados",
-            label: "Registros classificados",
-            value: `${kpisSavings.registrosClassificados}`,
-            hint: "Associados a uma regra ativa",
-            icon: Check,
-            tone: "gain",
-          },
-          {
-            id: "registros-sem-regra",
-            label: "Registros sem regra",
-            value: `${kpisSavings.registrosSemRegra}`,
-            hint: "Sem regra válida ou com regra ambígua",
-            icon: Clock,
-            tone: "neutral",
-          },
-          ...kpisSavings.categoriasFinanceiras,
-        ].map((kpi) => (
-          <KpiCard
-            key={kpi.id}
-            label={kpi.label}
-            value={kpi.value}
-            hint={kpi.hint}
-            icon={kpi.icon}
-            tone={kpi.tone}
-          />
-        ))}
-        </div>
+
+        {(() => {
+          const itensValidos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
+          const totalGeral = itensValidos.reduce((s, i) => s + (i.amount ?? 0), 0);
+          const totalXpt = itensValidos.filter((i) => tipoOperacao(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
+          const totalServices = itensValidos.filter((i) => tipoOperacao(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+
+          const mediaSemanalGeral = resumoSaude.mediaGeral ?? (importacoes.length > 0 ? totalGeral / importacoes.length : 0);
+          
+          const basesComTotal = new Map<string, number>();
+          for (const item of itensValidos) {
+            const b = normalizarBase(item.base) || "Sem base";
+            basesComTotal.set(b, (basesComTotal.get(b) ?? 0) + (item.amount ?? 0));
+          }
+          const maisOfensora = Array.from(basesComTotal.entries()).sort((a, b) => b[1] - a[1])[0];
+          const nomeOfensora = maisOfensora ? rotuloOperacao(maisOfensora[0]) : "Nenhuma";
+          const valorOfensora = maisOfensora ? maisOfensora[1] : 0;
+
+          return (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiCard
+                label="Total de descontos"
+                value={brl(totalGeral)}
+                hint={`XPT: ${brl(totalXpt)} · SERVICES: ${brl(totalServices)}`}
+                icon={Wallet}
+                tone="loss"
+                onClick={() => setModalDetalhe("total")}
+              />
+              <KpiCard
+                label="Média semanal"
+                value={brl(mediaSemanalGeral)}
+                hint={`Limite saudável: ${brl(LIMITE_SAUDAVEL_OPERACAO)}/sem`}
+                icon={TrendingDown}
+                tone="highlight"
+                onClick={() => setModalDetalhe("media")}
+              />
+              <KpiCard
+                label="Base mais ofensora"
+                value={nomeOfensora}
+                hint={maisOfensora ? `${brl(valorOfensora)} na semana` : "Sem ocorrências"}
+                icon={ShieldAlert}
+                tone="loss"
+                onClick={() => setModalDetalhe("ofensora")}
+              />
+              <KpiCard
+                label="Semanas analisadas"
+                value={`${importacoes.length} semana(s)`}
+                hint={`${itensFiltrados.length} registros no filtro atual`}
+                icon={CalendarRange}
+                tone="neutral"
+                onClick={() => setModalDetalhe("semanas")}
+              />
+            </div>
+          );
+        })()}
       </section>
+
+      {/* MODAL DE DETALHAMENTO XPT x SERVICES DOS CARDS */}
+      <Dialog open={modalDetalhe !== null} onOpenChange={(open) => !open && setModalDetalhe(null)}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          {modalDetalhe === "total" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Wallet className="size-5 text-destructive" /> Detalhamento de Descontos (XPT vs SERVICES)
+                </DialogTitle>
+                <DialogDescription className="font-medium">
+                  Total consolidado da semana selecionada segregado por tipo de operação e Base oficial.
+                </DialogDescription>
+              </DialogHeader>
+              {(() => {
+                const itensValidos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
+                const totalGeral = itensValidos.reduce((s, i) => s + (i.amount ?? 0), 0);
+                const totalXpt = itensValidos.filter((i) => tipoOperacao(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
+                const totalServices = itensValidos.filter((i) => tipoOperacao(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+
+                const porBase = new Map<string, number>();
+                for (const item of itensValidos) {
+                  const b = normalizarBase(item.base) || "Sem base";
+                  porBase.set(b, (porBase.get(b) ?? 0) + (item.amount ?? 0));
+                }
+                const listaBases = Array.from(porBase.entries())
+                  .map(([codigo, total]) => ({
+                    codigo,
+                    nome: nomeOperacao(codigo) ?? (codigo === "Sem base" ? "Sem base" : "Não cadastrada"),
+                    tipo: tipoOperacao(codigo),
+                    total,
+                    pct: totalGeral > 0 ? (total / totalGeral) * 100 : 0,
+                  }))
+                  .sort((a, b) => b.total - a.total);
+
+                return (
+                  <div className="space-y-4 pt-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <span className="text-xs font-bold uppercase text-muted-foreground">Total Geral</span>
+                        <p className="text-xl font-extrabold text-destructive tabular-nums mt-1">{brl(totalGeral)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">100% dos descontos</span>
+                      </div>
+                      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                        <span className="text-xs font-bold uppercase text-primary">Total XPT (Próprias)</span>
+                        <p className="text-xl font-extrabold text-primary tabular-nums mt-1">{brl(totalXpt)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">{totalGeral > 0 ? ((totalXpt / totalGeral) * 100).toFixed(1) : 0}% do total</span>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <span className="text-xs font-bold uppercase text-muted-foreground">Total SERVICES</span>
+                        <p className="text-xl font-extrabold text-foreground tabular-nums mt-1">{brl(totalServices)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">{totalGeral > 0 ? ((totalServices / totalGeral) * 100).toFixed(1) : 0}% do total</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-xs font-bold uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left">Código</th>
+                            <th className="px-4 py-2.5 text-left">Operação</th>
+                            <th className="px-4 py-2.5 text-center">Tipo</th>
+                            <th className="px-4 py-2.5 text-right">Total descontos</th>
+                            <th className="px-4 py-2.5 text-right">% do Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {listaBases.map((b) => (
+                            <tr key={b.codigo} className="border-t border-border hover:bg-muted/20">
+                              <td className="px-4 py-2.5 font-mono font-bold text-primary">{b.codigo}</td>
+                              <td className="px-4 py-2.5 font-semibold">{b.nome}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Badge variant={b.tipo === "XPT" ? "default" : "secondary"}>
+                                  {b.tipo}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-extrabold tabular-nums text-destructive">{brl(b.total)}</td>
+                              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-muted-foreground">{b.pct.toFixed(1)}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {modalDetalhe === "media" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <TrendingDown className="size-5 text-primary" /> Detalhamento da Média Semanal
+                </DialogTitle>
+                <DialogDescription className="font-medium">
+                  Médias históricas por operação com verificação de status operacional (limite de R$ 1.000/semana).
+                </DialogDescription>
+              </DialogHeader>
+              {(() => {
+                const operacoes = resumoSaude.operacoes;
+                const operacoesXpt = operacoes.filter((o) => tipoOperacao(o.base) === "XPT");
+                const operacoesServices = operacoes.filter((o) => tipoOperacao(o.base) === "SERVICES");
+
+                const mediaGeral = resumoSaude.mediaGeral ?? 0;
+                const mediaXpt = operacoesXpt.length > 0 ? operacoesXpt.reduce((s, o) => s + o.mediaSemanal, 0) / operacoesXpt.length : 0;
+                const mediaServices = operacoesServices.length > 0 ? operacoesServices.reduce((s, o) => s + o.mediaSemanal, 0) / operacoesServices.length : 0;
+
+                return (
+                  <div className="space-y-4 pt-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <span className="text-xs font-bold uppercase text-muted-foreground">Média Geral</span>
+                        <p className="text-xl font-extrabold text-foreground tabular-nums mt-1">{brl(mediaGeral)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">Todas as operações</span>
+                      </div>
+                      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                        <span className="text-xs font-bold uppercase text-primary">Média XPT</span>
+                        <p className="text-xl font-extrabold text-primary tabular-nums mt-1">{brl(mediaXpt)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">{operacoesXpt.length} bases XPT</span>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <span className="text-xs font-bold uppercase text-muted-foreground">Média SERVICES</span>
+                        <p className="text-xl font-extrabold text-foreground tabular-nums mt-1">{brl(mediaServices)}</p>
+                        <span className="text-xs text-muted-foreground font-semibold">{operacoesServices.length} bases Services</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-xs font-bold uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left">Base</th>
+                            <th className="px-4 py-2.5 text-center">Tipo</th>
+                            <th className="px-4 py-2.5 text-right">Média Semanal</th>
+                            <th className="px-4 py-2.5 text-right">Semanas Avaliadas</th>
+                            <th className="px-4 py-2.5 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {operacoes.map((o) => (
+                            <tr key={o.base} className="border-t border-border hover:bg-muted/20">
+                              <td className="px-4 py-2.5 font-semibold">{rotuloOperacao(o.base)}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Badge variant={tipoOperacao(o.base) === "XPT" ? "default" : "secondary"}>
+                                  {tipoOperacao(o.base)}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-extrabold tabular-nums">{brl(o.mediaSemanal)}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{o.semanasAvaliadas}</td>
+                              <td className="px-4 py-2.5 text-right">
+                                <StatusSaude status={o.statusAtual} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {modalDetalhe === "ofensora" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <ShieldAlert className="size-5 text-destructive" /> Detalhamento das Bases Mais Ofensoras
+                </DialogTitle>
+                <DialogDescription className="font-medium">
+                  Identificação das maiores perdas consolidadas no período com separação XPT x SERVICES.
+                </DialogDescription>
+              </DialogHeader>
+              {(() => {
+                const itensValidos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
+                const porBase = new Map<string, number>();
+                for (const item of itensValidos) {
+                  const b = normalizarBase(item.base) || "Sem base";
+                  porBase.set(b, (porBase.get(b) ?? 0) + (item.amount ?? 0));
+                }
+                const lista = Array.from(porBase.entries()).map(([base, total]) => ({
+                  base,
+                  nome: rotuloOperacao(base),
+                  tipo: tipoOperacao(base),
+                  total,
+                })).sort((a, b) => b.total - a.total);
+
+                const maisGeral = lista[0];
+                const maisXpt = lista.find((i) => i.tipo === "XPT");
+                const maisServices = lista.find((i) => i.tipo === "SERVICES");
+
+                return (
+                  <div className="space-y-4 pt-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                        <span className="text-xs font-bold uppercase text-destructive">Mais Ofensora Geral</span>
+                        <p className="text-base font-extrabold text-foreground mt-1 truncate">{maisGeral?.nome ?? "—"}</p>
+                        <p className="text-lg font-extrabold text-destructive tabular-nums mt-1">{maisGeral ? brl(maisGeral.total) : "—"}</p>
+                      </div>
+                      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                        <span className="text-xs font-bold uppercase text-primary">Mais Ofensora XPT</span>
+                        <p className="text-base font-extrabold text-foreground mt-1 truncate">{maisXpt?.nome ?? "—"}</p>
+                        <p className="text-lg font-extrabold text-primary tabular-nums mt-1">{maisXpt ? brl(maisXpt.total) : "—"}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-card p-4">
+                        <span className="text-xs font-bold uppercase text-muted-foreground">Mais Ofensora SERVICES</span>
+                        <p className="text-base font-extrabold text-foreground mt-1 truncate">{maisServices?.nome ?? "—"}</p>
+                        <p className="text-lg font-extrabold text-foreground tabular-nums mt-1">{maisServices ? brl(maisServices.total) : "—"}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-xs font-bold uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left">Posição</th>
+                            <th className="px-4 py-2.5 text-left">Base</th>
+                            <th className="px-4 py-2.5 text-center">Tipo</th>
+                            <th className="px-4 py-2.5 text-right">Total Perdido</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lista.map((item, idx) => (
+                            <tr key={item.base} className="border-t border-border hover:bg-muted/20">
+                              <td className="px-4 py-2.5 font-bold text-primary">{idx + 1}º</td>
+                              <td className="px-4 py-2.5 font-semibold">{item.nome}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <Badge variant={item.tipo === "XPT" ? "default" : "secondary"}>
+                                  {item.tipo}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-extrabold tabular-nums text-destructive">{brl(item.total)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {modalDetalhe === "semanas" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <CalendarRange className="size-5 text-primary" /> Semanas Analisadas (XPT x SERVICES)
+                </DialogTitle>
+                <DialogDescription className="font-medium">
+                  Consolidação do histórico semanal com total geral e divisão XPT vs SERVICES por semana.
+                </DialogDescription>
+              </DialogHeader>
+              {(() => {
+                const totaisPorSemana = importacoes.map((imp) => {
+                  const itensDaSemana = itensHistorico.filter((i) => i.import_id === imp.id && typeof i.amount === "number" && Number.isFinite(i.amount));
+                  const total = itensDaSemana.reduce((s, i) => s + (i.amount ?? 0), 0);
+                  const totalXpt = itensDaSemana.filter((i) => tipoOperacao(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
+                  const totalServices = itensDaSemana.filter((i) => tipoOperacao(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+                  return {
+                    id: imp.id,
+                    semana: imp.week_code,
+                    ano: imp.year,
+                    arquivo: imp.file_name,
+                    registros: itensDaSemana.length,
+                    total,
+                    totalXpt,
+                    totalServices,
+                  };
+                });
+
+                return (
+                  <div className="space-y-4 pt-2">
+                    <div className="rounded-lg border border-border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-xs font-bold uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left">Semana</th>
+                            <th className="px-4 py-2.5 text-left">Arquivo</th>
+                            <th className="px-4 py-2.5 text-right">Registros</th>
+                            <th className="px-4 py-2.5 text-right">Total XPT</th>
+                            <th className="px-4 py-2.5 text-right">Total SERVICES</th>
+                            <th className="px-4 py-2.5 text-right">Total Geral</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {totaisPorSemana.map((s) => (
+                            <tr key={s.id} className="border-t border-border hover:bg-muted/20">
+                              <td className="px-4 py-2.5 font-bold text-primary">{s.semana} ({s.ano})</td>
+                              <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[180px]" title={s.arquivo}>{s.arquivo}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold">{s.registros}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-primary">{brl(s.totalXpt)}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-muted-foreground">{brl(s.totalServices)}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-extrabold text-destructive">{brl(s.total)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -872,6 +1193,7 @@ export function SavingsView({ selecionadas, setSelecionadas, eficacia, setEficac
         </div>
       </section>
 
+      {/* SEÇÃO OPCIONAL DE PROJEÇÃO */}
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">

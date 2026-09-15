@@ -16,15 +16,24 @@ export function KpiCard({
   hint,
   icon: Icon,
   tone = "neutral",
+  onClick,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: LucideIcon;
   tone?: Tone;
+  onClick?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+    <div
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)] transition-all duration-200",
+        onClick &&
+          "cursor-pointer hover:border-primary/50 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
           {label}
@@ -39,7 +48,16 @@ export function KpiCard({
       >
         {value}
       </p>
-      {hint ? <p className="mt-1.5 text-sm font-semibold text-muted-foreground">{hint}</p> : null}
+      {hint ? (
+        <div className="mt-1.5 flex items-center justify-between text-sm font-semibold text-muted-foreground">
+          <span>{hint}</span>
+          {onClick ? (
+            <span className="text-xs font-bold text-primary underline underline-offset-2">
+              Detalhar
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

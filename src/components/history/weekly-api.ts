@@ -93,6 +93,14 @@ export const OPERACOES_OFICIAIS = {
   SSP6: "Mauá",
 } as const;
 
+export const XPT_BASES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
+
+export function tipoOperacao(base: string | null | undefined): "XPT" | "SERVICES" {
+  if (!base) return "SERVICES";
+  const chave = normalizarBase(base);
+  return XPT_BASES.has(chave) ? "XPT" : "SERVICES";
+}
+
 export function nomeOperacao(base: string | null | undefined) {
   if (!base) return null;
   const chave = normalizarBase(base);
