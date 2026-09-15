@@ -57,7 +57,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
-import { SavingsAccess, useSavingsSession } from "@/components/auth/SavingsAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -112,22 +111,6 @@ interface SavingsViewProps {
 }
 
 export function SavingsView({
-  ...props
-}: SavingsViewProps) {
-  const { session, loading } = useSavingsSession();
-
-  if (loading) {
-    return <p className="py-10 text-center text-sm font-medium text-muted-foreground">Verificando acesso ao Dashboard Savings…</p>;
-  }
-
-  if (!session) {
-    return <SavingsAccess />;
-  }
-
-  return <SavingsDataView {...props} />;
-}
-
-function SavingsDataView({
   selecionadas,
   setSelecionadas,
   eficacia,
