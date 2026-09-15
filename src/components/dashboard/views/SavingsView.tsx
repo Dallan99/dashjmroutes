@@ -103,6 +103,10 @@ function rotuloBase(base: string | null | undefined, service?: string | null) {
   return nome ? `${codigo} · ${nome}` : `${codigo} · Não cadastrada`;
 }
 
+function rotuloOrigem(item: { base: string | null; service: string | null }) {
+  return normalizarCodigoBase(item.base) || normalizarCodigoBase(item.service) || "Sem base";
+}
+
 interface SavingsViewProps {
   selecionadas: string[];
   setSelecionadas: React.Dispatch<React.SetStateAction<string[]>>;
@@ -307,6 +311,28 @@ export function SavingsView({
       pctServices: totalGeral > 0 ? (totalServices / totalGeral) * 100 : 0,
     };
   }, [itensFiltrados, importacoes.length, resumoSaude.mediaGeral]);
+
+  const detalhamentoPorOrigem = useMemo(() => {
+    const validos = itensFiltrados.filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount));
+    const porOrigem = new Map<string, { total: number; operacao: string; tipo: "XPT" | "SERVICES" }>();
+
+    for (const item of validos) {
+      const origem = rotuloOrigem(item);
+      const operacao = codigoOperacao(item.base, item.service) || "Sem base";
+      const atual = porOrigem.get(origem);
+      porOrigem.set(origem, {
+        total: (atual?.total ?? 0) + (item.amount ?? 0),
+        operacao,
+        tipo: getOperationType(operacao),
+      });
+    }
+
+    return Array.from(porOrigem, ([origem, dados]) => ({
+      origem,
+      ...dados,
+      pct: dadosFinanceiros.totalGeral > 0 ? (dados.total / dadosFinanceiros.totalGeral) * 100 : 0,
+    })).sort((a, b) => b.total - a.total);
+  }, [dadosFinanceiros.totalGeral, itensFiltrados]);
 
   if (carregandoImportacoes) {
     return <p className="py-10 text-center text-sm font-medium text-muted-foreground">Carregando dados do Dashboard Savings…</p>;
@@ -722,7 +748,7 @@ export function SavingsView({
                   <Wallet className="size-4 text-destructive" /> Detalhamento de Descontos (XPT x SERVICES)
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Consolidação dos descontos por Base e Tipo para a semana selecionada.
+                  Totais por rótulo original da planilha e sua operação no Dashboard Savings.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2 text-xs">
@@ -744,21 +770,28 @@ export function SavingsView({
                   <table className="w-full">
                     <thead className="bg-muted/60 text-muted-foreground font-bold uppercase text-[10px]">
                       <tr>
-                        <th className="px-3 py-2 text-left">Base</th>
+                        <th className="px-3 py-2 text-left">Rótulo da planilha</th>
+                        <th className="px-3 py-2 text-left">Operação</th>
                         <th className="px-3 py-2 text-center">Tipo</th>
                         <th className="px-3 py-2 text-right">Total</th>
                         <th className="px-3 py-2 text-right">% Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dadosFinanceiros.listaBases.map((b) => (
-                        <tr key={b.codigo} className="border-t border-border hover:bg-muted/20">
-                          <td className="px-3 py-2 font-semibold">{b.rotulo}</td>
-                          <td className="px-3 py-2 text-center"><Badge variant={b.tipo === "XPT" ? "default" : "secondary"}>{b.tipo}</Badge></td>
-                          <td className="px-3 py-2 text-right font-extrabold tabular-nums text-destructive">{brl(b.total)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{b.pct.toFixed(1)}%</td>
+                      {detalhamentoPorOrigem.map((item) => (
+                        <tr key={item.origem} className="border-t border-border hover:bg-muted/20">
+                          <td className="px-3 py-2 font-semibold">{item.origem}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{rotuloBase(item.operacao)}</td>
+                          <td className="px-3 py-2 text-center"><Badge variant={item.tipo === "XPT" ? "default" : "secondary"}>{item.tipo}</Badge></td>
+                          <td className="px-3 py-2 text-right font-extrabold tabular-nums text-destructive">{brl(item.total)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{item.pct.toFixed(1)}%</td>
                         </tr>
                       ))}
+                      {detalhamentoPorOrigem.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Nenhum lançamento para o filtro atual.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

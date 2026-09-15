@@ -26,10 +26,11 @@ export function KpiCard({
   onClick?: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-panel)] transition-all duration-200",
+        "w-full rounded-xl border border-border bg-card p-5 text-left shadow-[var(--shadow-panel)] transition-all duration-200",
         onClick &&
           "cursor-pointer hover:border-primary/50 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]",
       )}
@@ -58,6 +59,6 @@ export function KpiCard({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </button>
   );
 }
