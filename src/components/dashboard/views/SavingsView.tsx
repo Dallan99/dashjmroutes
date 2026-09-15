@@ -60,12 +60,8 @@ import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  calcularSaudeOperacional,
-  groupWeeklyItemsByActiveClassification,
   LIMITE_SAUDAVEL_OPERACAO,
   OPERACOES_OFICIAIS,
-  SAVINGS_SAUDE_CONFIG,
-  useActiveClassificationRules,
   useWeeklyImports,
   useWeeklyImportsHistory,
   useWeeklyItems,
@@ -156,7 +152,6 @@ export function SavingsView({
   const { data: itensSemana = [], isLoading: carregandoItens, isError: erroItens, refetch: recarregarItens } = useWeeklyItems(importacaoAtual?.id);
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
-  const { data: regrasAtivas = [], isLoading: carregandoRegras } = useActiveClassificationRules();
 
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
@@ -231,19 +226,49 @@ export function SavingsView({
     });
   }, [baseSelecionada, tipoSelecionado, itensHistorico]);
 
-  const resumoSaude = useMemo(
-    () => calcularSaudeOperacional(importacoes, itensHistorico, regrasAtivas, anoRanking ?? undefined),
-    [anoRanking, importacoes, itensHistorico, regrasAtivas],
-  );
-
   const rankingFiltrado = useMemo(() => {
-    return resumoSaude.operacoes.filter((op) => {
-      const codigo = normalizarCodigoBase(op.base);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || codigo === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(codigo) === tipoSelecionado;
-      return matchBase && matchTipo;
-    });
-  }, [baseSelecionada, resumoSaude.operacoes, tipoSelecionado]);
+    const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
+    const importacoesPorId = new Map(importacoesDoAno.map((importacao) => [importacao.id, importacao]));
+    const valoresPorBaseESemana = new Map<string, Map<string, number>>();
+
+    for (const item of itensHistorico) {
+      if (!importacoesPorId.has(item.import_id) || typeof item.amount !== "number" || !Number.isFinite(item.amount)) continue;
+
+      const base = codigoOperacao(item.base, item.service);
+      if (!base) continue;
+
+      const matchBase = baseSelecionada === "__todas_as_bases__" || base === baseSelecionada;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(base) === tipoSelecionado;
+      if (!matchBase || !matchTipo) continue;
+
+      const valoresDaBase = valoresPorBaseESemana.get(base) ?? new Map<string, number>();
+      valoresDaBase.set(item.import_id, (valoresDaBase.get(item.import_id) ?? 0) + item.amount);
+      valoresPorBaseESemana.set(base, valoresDaBase);
+    }
+
+    return Array.from(valoresPorBaseESemana, ([base, valoresPorSemana]) => {
+      const semanas = Array.from(valoresPorSemana, ([importId, valor]) => ({
+        weekCode: importacoesPorId.get(importId)?.week_code ?? importId,
+        valor,
+      })).sort((a, b) => a.valor - b.valor);
+      const total = semanas.reduce((acumulado, semana) => acumulado + semana.valor, 0);
+      const mediaSemanal = total / semanas.length;
+      const semanasSaudaveis = semanas.filter((semana) => semana.valor <= LIMITE_SAUDAVEL_OPERACAO).length;
+
+      return {
+        base,
+        mediaSemanal,
+        diferencaLimite: mediaSemanal - LIMITE_SAUDAVEL_OPERACAO,
+        semanasAvaliadas: semanas.length,
+        semanasSaudaveis,
+        semanasOfensoras: semanas.length - semanasSaudaveis,
+        percentualSaude: (semanasSaudaveis / semanas.length) * 100,
+        melhorSemana: semanas[0]!,
+        piorSemana: semanas.at(-1)!,
+        statusAtual: mediaSemanal <= LIMITE_SAUDAVEL_OPERACAO ? "Saudável" as const : "Ofensor" as const,
+      };
+    }).sort((a, b) => b.mediaSemanal - a.mediaSemanal);
+  }, [anoRanking, baseSelecionada, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const totaisPorImportacao = new Map(
@@ -277,7 +302,7 @@ export function SavingsView({
       .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SERVICES")
       .reduce((s, i) => s + (i.amount ?? 0), 0);
 
-    const mediaSemanal = resumoSaude.mediaGeral ?? (importacoes.length > 0 ? totalGeral / importacoes.length : 0);
+    const mediaSemanal = importacoes.length > 0 ? totalGeral / importacoes.length : 0;
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
@@ -310,7 +335,7 @@ export function SavingsView({
       pctXpt: totalGeral > 0 ? (totalXpt / totalGeral) * 100 : 0,
       pctServices: totalGeral > 0 ? (totalServices / totalGeral) * 100 : 0,
     };
-  }, [itensFiltrados, importacoes.length, resumoSaude.mediaGeral]);
+  }, [itensFiltrados, importacoes.length]);
 
   const detalhamentoPorOrigem = useMemo(() => {
     const validos = itensFiltrados.filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount));
