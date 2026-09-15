@@ -238,6 +238,7 @@ export async function lerArquivo(file: File): Promise<ParsedFile> {
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheets: ParsedSheet[] = wb.SheetNames.map((name) => {
     const ws = wb.Sheets[name];
+    if (!ws) return { name, headers: [], rows: [] };
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, raw: true });
     const headers = Array.from(new Set(rows.flatMap((r) => Object.keys(r)))).filter(
       (h) => h && !h.startsWith("__EMPTY"),
@@ -340,13 +341,13 @@ export function transformarLinhas(
     const amount = parseValor(valorOriginal);
 
     if (dataOriginal !== null && dataOriginal !== undefined && dataOriginal !== "" && !event_date) {
-      extra_data.data_do_evento_original = dataOriginal instanceof Date ? dataOriginal.toISOString() : dataOriginal;
+      extra_data["data_do_evento_original"] = dataOriginal instanceof Date ? dataOriginal.toISOString() : dataOriginal;
       rejeitadas.push({ linha: i + 2, motivo: "Data do evento inválida" });
       return;
     }
 
     if (valorOriginal !== null && valorOriginal !== undefined && valorOriginal !== "" && amount === null) {
-      extra_data.valor_original = valorOriginal instanceof Date ? valorOriginal.toISOString() : valorOriginal;
+      extra_data["valor_original"] = valorOriginal instanceof Date ? valorOriginal.toISOString() : valorOriginal;
     }
 
     validas.push({
