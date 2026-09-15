@@ -190,7 +190,7 @@ export function resolverBaseOperacao(
   return (
     BASE_XPT_POR_SERVICO[serviceNormalizado] ??
     BASE_XPT_POR_SERVICO[baseNormalizada] ??
-    baseNormalizada
+    (baseNormalizada || serviceNormalizado)
   ) || null;
 }
 
