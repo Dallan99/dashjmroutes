@@ -79,7 +79,7 @@ export const OPERACOES_OFICIAIS = {
   ESP15: "XPT Ibiúna",
   ESP16: "XPT Guarujá",
   ESP17: "XPT Embu Guaçu",
-  ESP18: "Atibaia",
+  ESP18: "XPT Franco da Rocha",
   SSC2: "Biguaçu",
   SSP15: "Santos",
   SSP17: "ABC",
@@ -94,6 +94,14 @@ export const OPERACOES_OFICIAIS = {
 } as const;
 
 export const XPT_BASES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
+
+/** Serviços presentes nas planilhas que pertencem às operações XPT. */
+export const BASE_XPT_POR_SERVICO: Record<string, keyof typeof OPERACOES_OFICIAIS> = {
+  SSP20: "ESP15",
+  SSP15: "ESP16",
+  SSP34: "ESP17",
+  SSP25: "ESP18",
+};
 
 export function tipoOperacao(base: string | null | undefined): "XPT" | "SERVICES" {
   if (!base) return "SERVICES";
@@ -164,6 +172,26 @@ export async function criarRegraClassificacao(params: {
 
 export function normalizarBase(base: string | null | undefined) {
   return base?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") ?? "";
+}
+
+/**
+ * Resolve a operação exibida no Savings preservando o serviço original.
+ * A planilha W32 informa SSPxx na coluna SERVICE; o dashboard trabalha
+ * com a base operacional ESPxx correspondente.
+ */
+export function resolverBaseOperacao(
+  base: string | null | undefined,
+  service?: string | null,
+): string | null {
+  const baseNormalizada = normalizarBase(base);
+  if (XPT_BASES.has(baseNormalizada)) return baseNormalizada;
+
+  const serviceNormalizado = normalizarBase(service);
+  return (
+    BASE_XPT_POR_SERVICO[serviceNormalizado] ??
+    BASE_XPT_POR_SERVICO[baseNormalizada] ??
+    baseNormalizada
+  ) || null;
 }
 
 /**
@@ -571,7 +599,7 @@ export function calcularSaudeOperacional(
     const regras = regrasPorClassificacao.get(classificacao) ?? [];
     if (regras.length !== 1) continue;
 
-    const base = normalizarBase(item.base);
+    const base = resolverBaseOperacao(item.base, item.service);
     if (!base) continue;
 
     const semanasDaBase = valoresPorBaseESemana.get(base) ?? new Map<string, number>();

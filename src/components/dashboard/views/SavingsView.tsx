@@ -58,6 +58,7 @@ import {
   useWeeklyItemsForImports,
   useWeekNotes,
   nomeOperacao,
+  resolverBaseOperacao,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
@@ -77,8 +78,12 @@ export function getOperationType(baseCode: string | null | undefined): "XPT" | "
   return XPT_CODES.has(normalizarCodigoBase(baseCode)) ? "XPT" : "SERVICES";
 }
 
-function rotuloBase(base: string | null | undefined) {
-  const codigo = normalizarCodigoBase(base);
+function codigoOperacao(base: string | null | undefined, service?: string | null) {
+  return normalizarCodigoBase(resolverBaseOperacao(base, service));
+}
+
+function rotuloBase(base: string | null | undefined, service?: string | null) {
+  const codigo = codigoOperacao(base, service);
   if (!codigo || codigo === "SEM BASE") return "Sem base";
   const nome = nomeOperacao(codigo);
   return nome ? `${codigo} · ${nome}` : `${codigo} · Não cadastrada`;
@@ -138,7 +143,7 @@ export function SavingsView({
   }, [importacoes]);
 
   const basesDisponiveis = useMemo(() => {
-    const naSemana = new Set(itensSemana.map((i) => normalizarCodigoBase(i.base)).filter(Boolean));
+    const naSemana = new Set(itensSemana.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
     const uniao = Array.from(new Set([...oficiais, ...naSemana]));
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -146,18 +151,18 @@ export function SavingsView({
 
   const itensFiltrados = useMemo(() => {
     return itensSemana.filter((item) => {
-      const b = normalizarCodigoBase(item.base);
+      const b = codigoOperacao(item.base, item.service);
       const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensSemana]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
-      const b = normalizarCodigoBase(item.base);
+      const b = codigoOperacao(item.base, item.service);
       const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(item.base) === tipoSelecionado;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, tipoSelecionado, itensHistorico]);
@@ -171,7 +176,7 @@ export function SavingsView({
     return resumoSaude.operacoes.filter((op) => {
       const codigo = normalizarCodigoBase(op.base);
       const matchBase = baseSelecionada === "__todas_as_bases__" || codigo === baseSelecionada;
-      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(op.base) === tipoSelecionado;
+      const matchTipo = tipoSelecionado === "TODOS" || getOperationType(codigo) === tipoSelecionado;
       return matchBase && matchTipo;
     });
   }, [baseSelecionada, resumoSaude.operacoes, tipoSelecionado]);
@@ -201,14 +206,18 @@ export function SavingsView({
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
     const totalGeral = validos.reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalXpt = validos.filter((i) => getOperationType(i.base) === "XPT").reduce((s, i) => s + (i.amount ?? 0), 0);
-    const totalServices = validos.filter((i) => getOperationType(i.base) === "SERVICES").reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalXpt = validos
+      .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "XPT")
+      .reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totalServices = validos
+      .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SERVICES")
+      .reduce((s, i) => s + (i.amount ?? 0), 0);
 
     const mediaSemanal = resumoSaude.mediaGeral ?? (importacoes.length > 0 ? totalGeral / importacoes.length : 0);
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
-      const b = normalizarCodigoBase(item.base) || "Sem base";
+      const b = codigoOperacao(item.base, item.service) || "Sem base";
       porBase.set(b, (porBase.get(b) ?? 0) + (item.amount ?? 0));
     }
     const listaOrdenada = Array.from(porBase.entries())

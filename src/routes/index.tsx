@@ -114,12 +114,11 @@ function Dashboard() {
       <header className="border-b border-border bg-[image:var(--gradient-hero)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className="flex size-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-sm font-extrabold tracking-tight text-secondary"
-              aria-label="JM TD"
-            >
-              JM
-            </div>
+            <img
+              src="/favicon.ico"
+              alt="JM Transportes"
+              className="size-11 rounded-lg border border-white/20 bg-white/10 object-contain p-1"
+            />
             <div>
               <h1 className="text-xl font-bold tracking-tight text-secondary sm:text-2xl">
                 JMRoutes · Painel de Savings

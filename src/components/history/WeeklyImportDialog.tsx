@@ -44,6 +44,7 @@ import {
   type Mapping,
   type ParsedFile,
 } from "./parse";
+import { resolverBaseOperacao } from "./weekly-api";
 
 const NENHUMA = "__nenhuma__";
 const normalizarTexto = (valor: string | null | undefined) =>
@@ -157,19 +158,69 @@ export function WeeklyImportDialog({
     setDuplicada(false);
     let importId: string | null = null;
 
+    const concluirImportacao = async (id: string) => {
+      const agora = new Date().toISOString();
+      const { data: concluida, error: erroConclusao } = await supabase
+        .from("weekly_imports")
+        .update({
+          status: "completed",
+          is_current: true,
+          imported_at: agora,
+        })
+        .eq("id", id)
+        .select("id, status, is_current")
+        .single();
+
+      if (erroConclusao) throw erroConclusao;
+      if (concluida.status !== "completed" || !concluida.is_current) {
+        throw new Error("A importação não foi concluída no histórico semanal.");
+      }
+
+      const { error: erroDesativarAnteriores } = await supabase
+        .from("weekly_imports")
+        .update({ is_current: false })
+        .eq("week_code", weekCode)
+        .eq("year", ano)
+        .neq("id", id)
+        .eq("status", "completed");
+
+      if (erroDesativarAnteriores) {
+        console.warn("[WeeklyImportDialog] Não foi possível desativar versões anteriores:", erroDesativarAnteriores);
+      }
+    };
+
     try {
       const { data: existentes, error: erroDuplicidade } = await supabase
         .from("weekly_imports")
         .select("id, status")
-        .eq("file_hash", arquivo.hash)
-        .eq("status", "completed");
+        .eq("file_hash", arquivo.hash);
       if (erroDuplicidade) throw erroDuplicidade;
-      if ((existentes ?? []).length > 0) {
+      if ((existentes ?? []).some((item) => item.status === "completed")) {
         setDuplicada(true);
         toast.warning("Arquivo já importado", {
           description: "Este arquivo já possui uma importação concluída no histórico.",
         });
         return;
+      }
+
+      const importacaoFalha = (existentes ?? []).find((item) => item.status === "failed");
+      if (importacaoFalha) {
+        const { count, error: erroContagem } = await supabase
+          .from("weekly_items")
+          .select("id", { count: "exact", head: true })
+          .eq("import_id", importacaoFalha.id);
+        if (erroContagem) throw erroContagem;
+
+        if (count === resultado.validas.length) {
+          await concluirImportacao(importacaoFalha.id);
+          await queryClient.invalidateQueries({ queryKey: ["weekly_imports"] });
+          await queryClient.invalidateQueries({ queryKey: ["weekly_items"] });
+          toast.success("Semana recuperada", {
+            description: `${count} registros já salvos foram concluídos no histórico semanal.`,
+          });
+          fechar(false);
+          return;
+        }
       }
 
       const numeroSemana = Number(weekCode.slice(1));
@@ -208,7 +259,10 @@ export function WeeklyImportDialog({
       }
       const itens = resultado.validas.map((linha) => ({
         import_id: importId,
-        base: (linha.base ? linha.base.trim() : null) ?? basesPorServico.get(normalizarTexto(linha.service)) ?? null,
+        base:
+          resolverBaseOperacao(linha.base, linha.service) ??
+          basesPorServico.get(normalizarTexto(linha.service)) ??
+          null,
         service: linha.service ?? null,
         package_id: linha.package_id ?? null,
         route_id: linha.route_id ?? null,
@@ -232,61 +286,7 @@ export function WeeklyImportDialog({
         if (erroItens) throw erroItens;
       }
 
-      let rpcSucesso = false;
-      try {
-        const { error: erroRpcP } = await supabase.rpc(
-          "concluir_importacao_semanal" as any,
-          { p_import_id: importId } as any,
-        );
-        if (!erroRpcP) {
-          rpcSucesso = true;
-        } else {
-          console.warn("[WeeklyImportDialog] RPC com p_import_id retornou erro, tentando import_id:", erroRpcP);
-        }
-      } catch (err) {
-        console.warn("[WeeklyImportDialog] Falha ao invocar RPC p_import_id:", err);
-      }
-
-      if (!rpcSucesso) {
-        try {
-          const { error: erroRpcSemP } = await supabase.rpc(
-            "concluir_importacao_semanal" as any,
-            { import_id: importId } as any,
-          );
-          if (!erroRpcSemP) {
-            rpcSucesso = true;
-          } else {
-            console.warn("[WeeklyImportDialog] RPC com import_id retornou erro, aplicando fallback direto:", erroRpcSemP);
-          }
-        } catch (err) {
-          console.warn("[WeeklyImportDialog] Falha ao invocar RPC import_id:", err);
-        }
-      }
-
-      if (!rpcSucesso) {
-        const agora = new Date().toISOString();
-        await supabase
-          .from("weekly_imports")
-          .update({
-            is_current: false,
-            superseded_by: importId,
-            superseded_at: agora,
-          })
-          .eq("week_code", weekCode)
-          .eq("year", ano)
-          .neq("id", importId);
-
-        const { error: erroConcluirDireto } = await supabase
-          .from("weekly_imports")
-          .update({
-            status: "completed",
-            is_current: true,
-            imported_at: agora,
-          })
-          .eq("id", importId);
-
-        if (erroConcluirDireto) throw erroConcluirDireto;
-      }
+      await concluirImportacao(importId);
 
       await queryClient.invalidateQueries({ queryKey: ["weekly_imports"] });
       await queryClient.invalidateQueries({ queryKey: ["weekly_items"] });
