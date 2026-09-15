@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      classification_rules: {
+        Row: {
+          active: boolean
+          category: string
+          classification: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          classification: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          classification?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jm_column_mappings: {
         Row: {
           created_at: string
@@ -139,58 +166,67 @@ export type Database = {
         }
         Relationships: []
       }
-      classification_rules: {
+      jm_notes: {
         Row: {
-          active: boolean | null
-          category: string
-          classification: string
-          created_at: string | null
+          base: string | null
+          created_at: string
           id: string
+          note: string
+          updated_at: string
+          week_label: string
+          year: number
         }
         Insert: {
-          active?: boolean | null
-          category: string
-          classification: string
-          created_at?: string | null
+          base?: string | null
+          created_at?: string
           id?: string
+          note?: string
+          updated_at?: string
+          week_label: string
+          year: number
         }
         Update: {
-          active?: boolean | null
-          category?: string
-          classification?: string
-          created_at?: string | null
+          base?: string | null
+          created_at?: string
           id?: string
+          note?: string
+          updated_at?: string
+          week_label?: string
+          year?: number
         }
         Relationships: []
       }
       service_base_mappings: {
         Row: {
-          active: boolean | null
+          active: boolean
           base: string
-          created_at: string | null
+          created_at: string
           id: string
           service: string
+          updated_at: string
         }
         Insert: {
-          active?: boolean | null
+          active?: boolean
           base: string
-          created_at?: string | null
+          created_at?: string
           id?: string
           service: string
+          updated_at?: string
         }
         Update: {
-          active?: boolean | null
+          active?: boolean
           base?: string
-          created_at?: string | null
+          created_at?: string
           id?: string
           service?: string
+          updated_at?: string
         }
         Relationships: []
       }
       week_notes: {
         Row: {
           base: string | null
-          created_at: string | null
+          created_at: string
           created_by: string | null
           id: string
           import_id: string
@@ -198,7 +234,7 @@ export type Database = {
         }
         Insert: {
           base?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           id?: string
           import_id: string
@@ -206,7 +242,7 @@ export type Database = {
         }
         Update: {
           base?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           id?: string
           import_id?: string
@@ -288,7 +324,7 @@ export type Database = {
           driver: string | null
           event_date: string | null
           evidence_url: string | null
-          extra_data: Json | null
+          extra_data: Json
           id: string
           import_id: string
           operational_status: string | null
@@ -305,7 +341,7 @@ export type Database = {
           driver?: string | null
           event_date?: string | null
           evidence_url?: string | null
-          extra_data?: Json | null
+          extra_data?: Json
           id?: string
           import_id: string
           operational_status?: string | null
@@ -322,7 +358,7 @@ export type Database = {
           driver?: string | null
           event_date?: string | null
           evidence_url?: string | null
-          extra_data?: Json | null
+          extra_data?: Json
           id?: string
           import_id?: string
           operational_status?: string | null
@@ -340,46 +376,18 @@ export type Database = {
           },
         ]
       }
-      jm_notes: {
-        Row: {
-          base: string | null
-          created_at: string
-          id: string
-          note: string
-          updated_at: string
-          week_label: string
-          year: number
-        }
-        Insert: {
-          base?: string | null
-          created_at?: string
-          id?: string
-          note?: string
-          updated_at?: string
-          week_label: string
-          year: number
-        }
-        Update: {
-          base?: string | null
-          created_at?: string
-          id?: string
-          note?: string
-          updated_at?: string
-          week_label?: string
-          year?: number
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       concluir_importacao_semanal: {
-        Args: {
-          import_id: string
-        }
-        Returns: Json
+        Args: { p_import_id: string }
+        Returns: undefined
+      }
+      finalize_weekly_import: {
+        Args: { p_import_id: string }
+        Returns: undefined
       }
     }
     Enums: {
