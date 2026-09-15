@@ -681,31 +681,31 @@ export function SavingsView({
               <span className="text-xs font-bold text-muted-foreground">{dadosFinanceiros.listaBases.length} bases</span>
             </div>
 
-            <div className="mt-3 overflow-x-auto max-h-72">
-              <table className="w-full text-xs">
+            <div className="mt-3 overflow-hidden">
+              <table className="w-full table-fixed text-xs">
                 <thead className="bg-muted/60 text-muted-foreground sticky top-0">
                   <tr className="text-left font-bold uppercase tracking-wider">
-                    <th className="px-3 py-2">Base</th>
-                    <th className="px-2 py-2 text-center">Tipo</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                    <th className="px-3 py-2 text-right">%</th>
+                    <th className="w-[42%] px-2 py-2">Base</th>
+                    <th className="w-[18%] px-1 py-2 text-center">Tipo</th>
+                    <th className="w-[27%] px-2 py-2 text-right">Total</th>
+                    <th className="w-[13%] px-1 py-2 text-right">%</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dadosFinanceiros.listaBases.map((item) => (
                     <tr key={item.codigo} className="border-t border-border/60 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-semibold truncate max-w-[150px]" title={item.rotulo}>
+                      <td className="px-2 py-2 font-semibold truncate" title={item.rotulo}>
                         {item.rotulo}
                       </td>
-                      <td className="px-2 py-2 text-center">
+                      <td className="px-1 py-2 text-center">
                         <Badge variant={item.tipo === "XPT" ? "default" : "secondary"} className="text-[10px] px-1 py-0 h-4">
                           {item.tipo}
                         </Badge>
                       </td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums text-destructive">
+                      <td className="px-2 py-2 text-right font-bold tabular-nums text-destructive">
                         {brl(item.total)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground font-medium">
+                      <td className="px-1 py-2 text-right tabular-nums text-muted-foreground font-medium">
                         {item.pct.toFixed(1)}%
                       </td>
                     </tr>
@@ -725,27 +725,27 @@ export function SavingsView({
               <span className="text-xs font-bold text-primary">Ano {anoRanking ?? "atual"}</span>
             </div>
 
-            <div className="mt-3 overflow-x-auto max-h-72">
-              <table className="w-full text-xs">
+            <div className="mt-3 overflow-hidden">
+              <table className="w-full table-fixed text-xs">
                 <thead className="bg-muted/60 text-muted-foreground sticky top-0">
                   <tr className="text-left font-bold uppercase tracking-wider">
-                    <th className="px-3 py-2">Pos.</th>
-                    <th className="px-3 py-2">Base</th>
-                    <th className="px-3 py-2 text-right">Média/sem</th>
-                    <th className="px-3 py-2 text-right">Saúde</th>
-                    <th className="px-3 py-2 text-right">Status</th>
+                    <th className="w-[9%] px-1 py-2">Pos.</th>
+                    <th className="w-[32%] px-2 py-2">Base</th>
+                    <th className="w-[25%] px-2 py-2 text-right">Média/sem</th>
+                    <th className="w-[12%] px-1 py-2 text-right">Saúde</th>
+                    <th className="w-[22%] px-1 py-2 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rankingFiltrado.map((op, idx) => (
                     <tr key={op.base} className="border-t border-border/60 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-extrabold text-primary tabular-nums">{idx + 1}º</td>
-                      <td className="px-3 py-2 font-semibold truncate max-w-[130px]" title={rotuloBase(op.base)}>
+                      <td className="px-1 py-2 font-extrabold text-primary tabular-nums">{idx + 1}º</td>
+                      <td className="px-2 py-2 font-semibold truncate" title={rotuloBase(op.base)}>
                         {rotuloBase(op.base)}
                       </td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums">{brl(op.mediaSemanal)}</td>
-                      <td className="px-3 py-2 text-right font-medium tabular-nums">{op.percentualSaude.toFixed(0)}%</td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-2 py-2 text-right font-bold tabular-nums">{brl(op.mediaSemanal)}</td>
+                      <td className="px-1 py-2 text-right font-medium tabular-nums">{op.percentualSaude.toFixed(0)}%</td>
+                      <td className="px-1 py-2 text-right">
                         <span
                           className={cn(
                             "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
