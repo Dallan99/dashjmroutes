@@ -57,12 +57,32 @@ import {
   useWeeklyItems,
   useWeeklyItemsForImports,
   useWeekNotes,
-  normalizarBase,
   nomeOperacao,
-  rotuloOperacao,
-  tipoOperacao,
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
+
+/** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
+const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
+
+/** Extrai o código da base a partir de textos como "ESP15 - XPT Ibiúna". */
+export function normalizarCodigoBase(base: string | null | undefined) {
+  if (!base) return "";
+  const texto = base.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+  const match = texto.match(/\b([A-Z]{2,4})\s*-?\s*(\d{1,3})\b/);
+  return match ? `${match[1]}${match[2]}` : texto;
+}
+
+/** Classificação oficial do tipo de operação, baseada apenas no código da base. */
+export function getOperationType(baseCode: string | null | undefined): "XPT" | "SERVICES" {
+  return XPT_CODES.has(normalizarCodigoBase(baseCode)) ? "XPT" : "SERVICES";
+}
+
+function rotuloBase(base: string | null | undefined) {
+  const codigo = normalizarCodigoBase(base);
+  if (!codigo || codigo === "SEM BASE") return "Sem base";
+  const nome = nomeOperacao(codigo);
+  return nome ? `${codigo} · ${nome}` : `${codigo} · Não cadastrada`;
+}
 
 interface SavingsViewProps {
   selecionadas: string[];
