@@ -518,7 +518,7 @@ export function SavingsView({
       {/* 2. ÁREA PRINCIPAL CLARA */}
       <main className="flex-1 min-w-0 space-y-4">
         {/* 3. QUATRO CARDS NO TOPO */}
-        <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Total de descontos"
             value={brl(dadosFinanceiros.totalGeral)}
@@ -541,6 +541,7 @@ export function SavingsView({
             hint={dadosFinanceiros.maiorOfensor ? `${brl(dadosFinanceiros.maiorOfensor.total)} na semana` : "Sem ocorrências"}
             icon={ShieldAlert}
             tone="loss"
+            valueClassName="text-xl leading-7 sm:text-[1.5rem]"
             onClick={() => setModalDetalhe("ofensora")}
           />
           <KpiCard

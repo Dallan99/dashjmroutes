@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type Tone = "neutral" | "loss" | "gain" | "highlight";
@@ -17,43 +18,46 @@ export function KpiCard({
   icon: Icon,
   tone = "neutral",
   onClick,
+  valueClassName,
 }: {
   label: string;
   value: string;
-  hint?: string;
+  hint?: ReactNode;
   icon: LucideIcon;
   tone?: Tone;
   onClick?: () => void;
+  valueClassName?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full rounded-xl border border-border bg-card p-5 text-left shadow-[var(--shadow-panel)] transition-all duration-200",
+        "flex h-full min-h-[172px] w-full flex-col rounded-2xl border border-border bg-card p-4 text-left shadow-[var(--shadow-panel)] transition-all duration-200",
         onClick &&
           "cursor-pointer hover:border-primary/50 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-bold uppercase leading-4 tracking-wider text-muted-foreground">
           {label}
         </p>
         <Icon className={cn("size-4 shrink-0", toneRing[tone])} />
       </div>
       <p
         className={cn(
-          "mt-3 text-2xl font-extrabold tabular-nums tracking-tight sm:text-3xl",
+          "mt-2 text-[1.55rem] font-extrabold leading-tight tabular-nums tracking-tight sm:text-[1.75rem]",
           toneRing[tone],
+          valueClassName,
         )}
       >
         {value}
       </p>
       {hint ? (
-        <div className="mt-1.5 flex items-center justify-between text-sm font-semibold text-muted-foreground">
-          <span>{hint}</span>
+        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-2 text-xs font-semibold leading-4 text-muted-foreground">
+          <span className="min-w-0">{hint}</span>
           {onClick ? (
-            <span className="text-xs font-bold text-primary underline underline-offset-2">
+            <span className="shrink-0 text-[11px] font-bold text-primary underline underline-offset-2">
               Detalhar
             </span>
           ) : null}
