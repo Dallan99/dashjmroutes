@@ -46,7 +46,10 @@ function Dashboard() {
   
   const [selecionadas, setSelecionadas] = useState<string[]>(initialBases);
   const [eficacia, setEficacia] = useState(view !== "savings" ? (search.eficacia ?? 100) : 100);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("jm-theme") !== "light";
+  });
 
   // Mão de Obra Simulation State
   const initialLabor: LaborPremises = view !== "savings" && search.labor 
@@ -62,6 +65,7 @@ function Dashboard() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    window.localStorage.setItem("jm-theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
 
   // Sync state to URL (ignora parâmetros legados de simulação na visão real de savings)
