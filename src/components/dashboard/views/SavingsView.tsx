@@ -72,6 +72,8 @@ import {
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
+const TODAS_AS_SEMANAS = "__todas_as_semanas__";
+
 /** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
 const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
 
@@ -138,16 +140,18 @@ export function SavingsView({
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
+  const todasSemanas = importacaoSelecionada === TODAS_AS_SEMANAS;
+
   useEffect(() => {
-    if (importacoes.length > 0) {
+    if (importacoes.length > 0 && !todasSemanas) {
       const selecionadaExiste = importacoes.some((item) => item.id === importacaoSelecionada);
       if (!selecionadaExiste) {
         setImportacaoSelecionada(importacoes[0]!.id);
       }
     }
-  }, [importacaoSelecionada, importacoes]);
+  }, [importacaoSelecionada, importacoes, todasSemanas]);
 
-  const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
+  const importacaoAtual = todasSemanas ? null : (importacoes.find((item) => item.id === importacaoSelecionada) ?? null);
 
   useEffect(() => {
     if (importacaoAtual && anoRanking === null) {
@@ -158,6 +162,9 @@ export function SavingsView({
   const { data: itensSemana = [], isLoading: carregandoItens, isError: erroItens, refetch: recarregarItens } = useWeeklyItems(importacaoAtual?.id);
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
+
+  /** Itens do escopo ativo: semana selecionada ou todas as semanas importadas. */
+  const itensEscopo = todasSemanas ? itensHistorico : itensSemana;
 
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
@@ -208,20 +215,20 @@ export function SavingsView({
   }, [importacoes]);
 
   const basesDisponiveis = useMemo(() => {
-    const naSemana = new Set(itensSemana.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
+    const naSemana = new Set(itensEscopo.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
     const uniao = Array.from(new Set([...oficiais, ...naSemana]));
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [itensSemana]);
+  }, [itensEscopo]);
 
   const itensFiltrados = useMemo(() => {
-    return itensSemana.filter((item) => {
+    return itensEscopo.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
       const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
       return matchBase && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensSemana]);
+  }, [baseSelecionada, tipoSelecionado, itensEscopo]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
@@ -311,7 +318,8 @@ export function SavingsView({
       .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SEM BASE")
       .reduce((s, i) => s + (i.amount ?? 0), 0);
 
-    const mediaSemanal = importacoes.length > 0 ? totalGeral / importacoes.length : 0;
+    const semanasNoEscopo = todasSemanas ? importacoes.length : 1;
+    const mediaSemanal = semanasNoEscopo > 0 ? totalGeral / semanasNoEscopo : 0;
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
@@ -345,7 +353,7 @@ export function SavingsView({
       pctXpt: totalGeral > 0 ? (totalXpt / totalGeral) * 100 : 0,
       pctServices: totalGeral > 0 ? (totalServices / totalGeral) * 100 : 0,
     };
-  }, [itensFiltrados, importacoes.length]);
+  }, [itensFiltrados, importacoes.length, todasSemanas]);
 
   const detalhamentoPorOrigem = useMemo(() => {
     const validos = itensFiltrados.filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount));
@@ -484,12 +492,15 @@ export function SavingsView({
 
           {/* Filtro: Semana */}
           <div className="space-y-1.5 pt-1">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Semana ativa</Label>
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Semana</Label>
             <Select value={importacaoSelecionada} onValueChange={setImportacaoSelecionada}>
               <SelectTrigger className="h-9 border-zinc-800 bg-zinc-900/90 text-xs text-zinc-100 focus:ring-amber-400">
                 <SelectValue placeholder="Selecione a semana" />
               </SelectTrigger>
               <SelectContent className="border-zinc-800 bg-zinc-900 text-zinc-100">
+                <SelectItem value={TODAS_AS_SEMANAS} className="text-xs font-bold text-amber-300 hover:bg-zinc-800 focus:bg-zinc-800">
+                  Todas as semanas
+                </SelectItem>
                 {importacoes.map((item) => (
                   <SelectItem key={item.id} value={item.id} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
                     {item.week_code} ({item.year})
@@ -643,7 +654,7 @@ export function SavingsView({
                 <ShieldAlert className="size-4 text-destructive" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Top 5 ofensores</h3>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground">Semana {importacaoAtual?.week_code}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{todasSemanas ? "Todas as semanas" : `Semana ${importacaoAtual?.week_code}`}</span>
             </div>
 
             <div className="mt-3 space-y-2.5">
