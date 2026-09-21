@@ -72,6 +72,8 @@ import {
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
+const TODAS_AS_SEMANAS = "__todas_as_semanas__";
+
 /** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
 const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
 
