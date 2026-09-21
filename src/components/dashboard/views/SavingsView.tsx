@@ -654,7 +654,7 @@ export function SavingsView({
                 <ShieldAlert className="size-4 text-destructive" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Top 5 ofensores</h3>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground">Semana {importacaoAtual?.week_code}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{todasSemanas ? "Todas as semanas" : `Semana ${importacaoAtual?.week_code}`}</span>
             </div>
 
             <div className="mt-3 space-y-2.5">
