@@ -163,6 +163,9 @@ export function SavingsView({
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
 
+  /** Itens do escopo ativo: semana selecionada ou todas as semanas importadas. */
+  const itensEscopo = todasSemanas ? itensHistorico : itensSemana;
+
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
 
