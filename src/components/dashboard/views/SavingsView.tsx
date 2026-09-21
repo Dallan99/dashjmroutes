@@ -318,7 +318,8 @@ export function SavingsView({
       .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SEM BASE")
       .reduce((s, i) => s + (i.amount ?? 0), 0);
 
-    const mediaSemanal = importacoes.length > 0 ? totalGeral / importacoes.length : 0;
+    const semanasNoEscopo = todasSemanas ? importacoes.length : 1;
+    const mediaSemanal = semanasNoEscopo > 0 ? totalGeral / semanasNoEscopo : 0;
 
     const porBase = new Map<string, number>();
     for (const item of validos) {
