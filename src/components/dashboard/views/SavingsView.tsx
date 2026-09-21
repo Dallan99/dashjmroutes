@@ -492,12 +492,15 @@ export function SavingsView({
 
           {/* Filtro: Semana */}
           <div className="space-y-1.5 pt-1">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Semana ativa</Label>
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Semana</Label>
             <Select value={importacaoSelecionada} onValueChange={setImportacaoSelecionada}>
               <SelectTrigger className="h-9 border-zinc-800 bg-zinc-900/90 text-xs text-zinc-100 focus:ring-amber-400">
                 <SelectValue placeholder="Selecione a semana" />
               </SelectTrigger>
               <SelectContent className="border-zinc-800 bg-zinc-900 text-zinc-100">
+                <SelectItem value={TODAS_AS_SEMANAS} className="text-xs font-bold text-amber-300 hover:bg-zinc-800 focus:bg-zinc-800">
+                  Todas as semanas
+                </SelectItem>
                 {importacoes.map((item) => (
                   <SelectItem key={item.id} value={item.id} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
                     {item.week_code} ({item.year})
