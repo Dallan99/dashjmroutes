@@ -353,7 +353,7 @@ export function SavingsView({
       pctXpt: totalGeral > 0 ? (totalXpt / totalGeral) * 100 : 0,
       pctServices: totalGeral > 0 ? (totalServices / totalGeral) * 100 : 0,
     };
-  }, [itensFiltrados, importacoes.length]);
+  }, [itensFiltrados, importacoes.length, todasSemanas]);
 
   const detalhamentoPorOrigem = useMemo(() => {
     const validos = itensFiltrados.filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount));
