@@ -140,16 +140,18 @@ export function SavingsView({
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
+  const todasSemanas = importacaoSelecionada === TODAS_AS_SEMANAS;
+
   useEffect(() => {
-    if (importacoes.length > 0) {
+    if (importacoes.length > 0 && !todasSemanas) {
       const selecionadaExiste = importacoes.some((item) => item.id === importacaoSelecionada);
       if (!selecionadaExiste) {
         setImportacaoSelecionada(importacoes[0]!.id);
       }
     }
-  }, [importacaoSelecionada, importacoes]);
+  }, [importacaoSelecionada, importacoes, todasSemanas]);
 
-  const importacaoAtual = importacoes.find((item) => item.id === importacaoSelecionada) ?? null;
+  const importacaoAtual = todasSemanas ? null : (importacoes.find((item) => item.id === importacaoSelecionada) ?? null);
 
   useEffect(() => {
     if (importacaoAtual && anoRanking === null) {
