@@ -215,20 +215,20 @@ export function SavingsView({
   }, [importacoes]);
 
   const basesDisponiveis = useMemo(() => {
-    const naSemana = new Set(itensSemana.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
+    const naSemana = new Set(itensEscopo.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
     const uniao = Array.from(new Set([...oficiais, ...naSemana]));
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [itensSemana]);
+  }, [itensEscopo]);
 
   const itensFiltrados = useMemo(() => {
-    return itensSemana.filter((item) => {
+    return itensEscopo.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
       const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
       return matchBase && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensSemana]);
+  }, [baseSelecionada, tipoSelecionado, itensEscopo]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
