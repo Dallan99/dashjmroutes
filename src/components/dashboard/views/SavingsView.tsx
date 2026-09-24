@@ -290,19 +290,40 @@ export function SavingsView({
         { semana: imp.week_code, year: imp.year, week: imp.week_number, valor: 0, registros: 0 },
       ]),
     );
+    const ofensoresPorImportacao = new Map<string, Map<string, number>>();
 
     for (const item of itensHistoricoFiltrados) {
       const total = totaisPorImportacao.get(item.import_id);
       if (!total) continue;
       total.registros += 1;
-      if (typeof item.amount === "number" && Number.isFinite(item.amount)) {
-        total.valor += item.amount;
-      }
+      if (typeof item.amount !== "number" || !Number.isFinite(item.amount)) continue;
+      total.valor += item.amount;
+
+      const base = codigoOperacao(item.base, item.service) || "Sem base";
+      const valoresDaBase = ofensoresPorImportacao.get(item.import_id) ?? new Map<string, number>();
+      valoresDaBase.set(base, (valoresDaBase.get(base) ?? 0) + item.amount);
+      ofensoresPorImportacao.set(item.import_id, valoresDaBase);
     }
 
-    return Array.from(totaisPorImportacao.values()).sort(
-      (a, b) => a.year - b.year || a.week - b.week,
-    );
+    return Array.from(totaisPorImportacao.values())
+      .map((linha) => ({
+        ...linha,
+        ofensores: Array.from(ofensoresPorImportacao.get(linha.semana === "" ? "" : "") ?? [])
+          .slice(0, 0),
+      }))
+      .sort((a, b) => a.year - b.year || a.week - b.week)
+      .map((linha) => {
+        const valores = ofensoresPorImportacao.get(importacoes.find((i) => i.week_code === linha.semana && i.year === linha.year)?.id ?? "");
+        return valores
+          ? {
+              ...linha,
+              ofensores: Array.from(valores.entries())
+                .map(([codigo, valor]) => ({ codigo, rotulo: rotuloBase(codigo), valor }))
+                .sort((a, b) => b.valor - a.valor)
+                .slice(0, 4),
+            }
+          : { ...linha, ofensores: [] };
+      });
   }, [importacoes, itensHistoricoFiltrados]);
 
   const dadosFinanceiros = useMemo(() => {
