@@ -111,6 +111,40 @@ function rotuloOrigem(item: { base: string | null; service: string | null }) {
   return normalizarCodigoBase(item.base) || normalizarCodigoBase(item.service) || "Sem base";
 }
 
+type EvolucaoPonto = {
+  semana: string;
+  year: number;
+  valor: number;
+  registros: number;
+  ofensores: { codigo: string; rotulo: string; valor: number }[];
+};
+
+function TooltipOfensores({ active, payload }: { active?: boolean; payload?: { payload: EvolucaoPonto }[] }) {
+  if (!active || !payload?.length) return null;
+  const ponto = payload[0]!.payload;
+  return (
+    <div className="max-w-[260px] rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-lg">
+      <p className="font-bold text-foreground">
+        {ponto.semana} ({ponto.year})
+      </p>
+      <p className="font-extrabold tabular-nums text-destructive">Descontos: {brl(ponto.valor)}</p>
+      {ponto.ofensores.length > 0 && (
+        <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Maiores ofensores</p>
+          {ponto.ofensores.map((ofensor, idx) => (
+            <div key={ofensor.codigo} className="flex items-center justify-between gap-3">
+              <span className="truncate font-semibold text-foreground" title={ofensor.rotulo}>
+                {idx + 1}. {ofensor.rotulo}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums text-muted-foreground">{brl(ofensor.valor)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface SavingsViewProps {
   selecionadas: string[];
   setSelecionadas: React.Dispatch<React.SetStateAction<string[]>>;
