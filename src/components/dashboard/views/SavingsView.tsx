@@ -166,7 +166,7 @@ export function SavingsView({
     refetch: recarregarImportacoes,
   } = useWeeklyImports();
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
-  const [importacaoSelecionada, setImportacaoSelecionada] = useState("");
+  const [importacaoSelecionada, setImportacaoSelecionada] = useState(TODAS_AS_SEMANAS);
   const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
@@ -223,7 +223,7 @@ export function SavingsView({
         .eq("id", importacaoAtual.id);
       if (erroImportacao) throw erroImportacao;
 
-      setImportacaoSelecionada("");
+      setImportacaoSelecionada(TODAS_AS_SEMANAS);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
         queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
