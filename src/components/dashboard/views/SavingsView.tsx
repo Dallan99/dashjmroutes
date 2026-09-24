@@ -111,6 +111,40 @@ function rotuloOrigem(item: { base: string | null; service: string | null }) {
   return normalizarCodigoBase(item.base) || normalizarCodigoBase(item.service) || "Sem base";
 }
 
+type EvolucaoPonto = {
+  semana: string;
+  year: number;
+  valor: number;
+  registros: number;
+  ofensores: { codigo: string; rotulo: string; valor: number }[];
+};
+
+function TooltipOfensores({ active, payload }: { active?: boolean; payload?: { payload: EvolucaoPonto }[] }) {
+  if (!active || !payload?.length) return null;
+  const ponto = payload[0]!.payload;
+  return (
+    <div className="max-w-[260px] rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-lg">
+      <p className="font-bold text-foreground">
+        {ponto.semana} ({ponto.year})
+      </p>
+      <p className="font-extrabold tabular-nums text-destructive">Descontos: {brl(ponto.valor)}</p>
+      {ponto.ofensores.length > 0 && (
+        <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Maiores ofensores</p>
+          {ponto.ofensores.map((ofensor, idx) => (
+            <div key={ofensor.codigo} className="flex items-center justify-between gap-3">
+              <span className="truncate font-semibold text-foreground" title={ofensor.rotulo}>
+                {idx + 1}. {ofensor.rotulo}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums text-muted-foreground">{brl(ofensor.valor)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface SavingsViewProps {
   selecionadas: string[];
   setSelecionadas: React.Dispatch<React.SetStateAction<string[]>>;
@@ -290,19 +324,33 @@ export function SavingsView({
         { semana: imp.week_code, year: imp.year, week: imp.week_number, valor: 0, registros: 0 },
       ]),
     );
+    const ofensoresPorImportacao = new Map<string, Map<string, number>>();
 
     for (const item of itensHistoricoFiltrados) {
       const total = totaisPorImportacao.get(item.import_id);
       if (!total) continue;
       total.registros += 1;
-      if (typeof item.amount === "number" && Number.isFinite(item.amount)) {
-        total.valor += item.amount;
-      }
+      if (typeof item.amount !== "number" || !Number.isFinite(item.amount)) continue;
+      total.valor += item.amount;
+
+      const base = codigoOperacao(item.base, item.service) || "Sem base";
+      const valoresDaBase = ofensoresPorImportacao.get(item.import_id) ?? new Map<string, number>();
+      valoresDaBase.set(base, (valoresDaBase.get(base) ?? 0) + item.amount);
+      ofensoresPorImportacao.set(item.import_id, valoresDaBase);
     }
 
-    return Array.from(totaisPorImportacao.values()).sort(
-      (a, b) => a.year - b.year || a.week - b.week,
-    );
+    return Array.from(totaisPorImportacao.entries())
+      .map(([importId, linha]) => {
+        const valores = ofensoresPorImportacao.get(importId);
+        const ofensores = valores
+          ? Array.from(valores.entries())
+              .map(([codigo, valor]) => ({ codigo, rotulo: rotuloBase(codigo), valor }))
+              .sort((a, b) => b.valor - a.valor)
+              .slice(0, 4)
+          : [];
+        return { ...linha, ofensores };
+      })
+      .sort((a, b) => a.year - b.year || a.week - b.week);
   }, [importacoes, itensHistoricoFiltrados]);
 
   const dadosFinanceiros = useMemo(() => {
@@ -584,13 +632,8 @@ export function SavingsView({
                 <XAxis dataKey="semana" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} />
                 <YAxis tickFormatter={(val: number) => brlCurto(val)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} width={64} />
                 <Tooltip
-                  formatter={(val: number) => [brl(val), "Descontos"]}
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "0.6rem",
-                    fontSize: 12,
-                  }}
+                  content={<TooltipOfensores />}
+                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
                 />
                 <Line
                   type="monotone"
