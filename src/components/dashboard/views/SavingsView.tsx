@@ -632,13 +632,8 @@ export function SavingsView({
                 <XAxis dataKey="semana" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} />
                 <YAxis tickFormatter={(val: number) => brlCurto(val)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} tickLine={false} width={64} />
                 <Tooltip
-                  formatter={(val: number) => [brl(val), "Descontos"]}
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "0.6rem",
-                    fontSize: 12,
-                  }}
+                  content={<TooltipOfensores />}
+                  cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
                 />
                 <Line
                   type="monotone"
