@@ -254,8 +254,14 @@ export function SavingsView({
   const basesDisponiveis = useMemo(() => {
     const naSemana = new Set(itensEscopo.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
-    const uniao = Array.from(new Set([...oficiais, ...naSemana]));
-    return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    // Deduplica por rótulo final: códigos oficiais que resolvem para o mesmo
+    // XPT (ex.: SSP15 → ESP16) não devem aparecer duas vezes no filtro.
+    const porRotulo = new Map<string, string>();
+    for (const codigo of [...oficiais, ...naSemana]) {
+      const rotulo = rotuloBase(codigo);
+      if (!porRotulo.has(rotulo)) porRotulo.set(rotulo, codigo);
+    }
+    return Array.from(porRotulo.values()).sort((a, b) => rotuloBase(a).localeCompare(rotuloBase(b), "pt-BR"));
   }, [itensEscopo]);
 
   /** Base conta como "todas" quando nenhuma base específica está marcada. */
