@@ -114,6 +114,13 @@ function rotuloOrigem(item: { base: string | null; service: string | null }) {
   return normalizarCodigoBase(item.base) || normalizarCodigoBase(item.service) || "Sem base";
 }
 
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function rotuloMes(mes: string) {
+  const [ano, mm] = mes.split("-");
+  return `${MESES_ABREV[Number(mm) - 1] ?? mm}/${ano}`;
+}
+
 type EvolucaoPonto = {
   semana: string;
   year: number;
