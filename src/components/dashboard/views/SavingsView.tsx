@@ -233,7 +233,7 @@ export function SavingsView({
         .eq("id", importacaoAtual.id);
       if (erroImportacao) throw erroImportacao;
 
-      setImportacaoSelecionada(TODAS_AS_SEMANAS);
+      setSemanasSelecionadas([]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
         queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
