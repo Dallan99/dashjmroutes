@@ -171,6 +171,7 @@ export function SavingsView({
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
   const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
+  const [mesesSelecionados, setMesesSelecionados] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
@@ -203,12 +204,37 @@ export function SavingsView({
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
 
-  /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro. */
+  const importacaoPorId = useMemo(() => new Map(importacoes.map((i) => [i.id, i])), [importacoes]);
+
+  /** Mês do item (AAAA-MM): data do evento; sem data, aproxima pela semana ISO da importação. */
+  const mesDoItem = (item: (typeof itensHistorico)[number]): string | null => {
+    if (item.event_date) return item.event_date.slice(0, 7);
+    const imp = importacaoPorId.get(item.import_id);
+    if (!imp) return null;
+    const d = new Date(Date.UTC(imp.year, 0, 1 + (imp.week_number - 1) * 7));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const matchMes = (item: (typeof itensHistorico)[number]) =>
+    mesesSelecionados.length === 0 || mesesSelecionados.includes(mesDoItem(item) ?? "");
+
+  const mesesDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of itensHistorico) {
+      const m = mesDoItem(item);
+      if (m) set.add(m);
+    }
+    return Array.from(set).sort().reverse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensHistorico, importacaoPorId]);
+
+  /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro, respeitando o filtro de mês. */
   const itensEscopo = useMemo(() => {
-    if (todasSemanas) return itensHistorico;
     const ids = new Set(semanasSelecionadas);
-    return itensHistorico.filter((item) => ids.has(item.import_id));
-  }, [todasSemanas, semanasSelecionadas, itensHistorico]);
+    const base = todasSemanas ? itensHistorico : itensHistorico.filter((item) => ids.has(item.import_id));
+    return base.filter(matchMes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasSemanas, semanasSelecionadas, itensHistorico, mesesSelecionados]);
 
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
