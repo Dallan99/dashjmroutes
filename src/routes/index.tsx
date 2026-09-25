@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Moon, Sun } from "lucide-react";
 import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
@@ -58,6 +60,27 @@ function Dashboard() {
   const [laborPremises, setLaborPremises] = useState<LaborPremises>(initialLabor);
 
   const laborStats = calculateLaborStats(laborPremises);
+
+  const { data: projecaoReal } = useQuery({
+    queryKey: ["projecao_anual_real"],
+    queryFn: async () => {
+      const { data: imps, error } = await supabase
+        .from("weekly_imports")
+        .select("id")
+        .eq("status", "completed")
+        .eq("is_current", true);
+      if (error) throw error;
+      if (!imps?.length) return null;
+      const { data: itens, error: e2 } = await supabase
+        .from("weekly_items")
+        .select("amount")
+        .in("import_id", imps.map((i) => i.id));
+      if (e2) throw e2;
+      const total = (itens ?? []).reduce((s, i) => s + Math.abs(Number(i.amount) || 0), 0);
+      const media = total / imps.length;
+      return { media, anual: media * 52, semanas: imps.length };
+    },
+  });
 
   useEffect(() => {
     if (isDarkMode) {
@@ -142,11 +165,16 @@ function Dashboard() {
             </button>
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
               <p className="text-[11px] uppercase tracking-wider text-white">
-                Economia anual projetada (Operacional)
+                Descontos anuais projetados (real)
               </p>
               <p className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {brl(currentSavingSemanal() * 52)}
+                {projecaoReal ? brl(projecaoReal.anual) : "—"}
               </p>
+              {projecaoReal && (
+                <p className="text-[11px] font-semibold text-white/80">
+                  Média {brl(projecaoReal.media)}/sem × 52 · {projecaoReal.semanas} semanas
+                </p>
+              )}
             </div>
           </div>
         </div>
