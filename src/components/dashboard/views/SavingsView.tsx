@@ -499,24 +499,64 @@ export function SavingsView({
             </Select>
           </div>
 
-          {/* Filtro: Base */}
+          {/* Filtro: Base (múltipla seleção) */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Base</Label>
-            <Select value={baseSelecionada} onValueChange={setBaseSelecionada}>
-              <SelectTrigger className="h-9 border-zinc-800 bg-zinc-900/90 text-xs text-zinc-100 focus:ring-amber-400">
-                <SelectValue placeholder="Todas as bases" />
-              </SelectTrigger>
-              <SelectContent className="max-h-56 border-zinc-800 bg-zinc-900 text-zinc-100">
-                <SelectItem value="__todas_as_bases__" className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                  Todas as bases
-                </SelectItem>
-                {basesDisponiveis.map((base) => (
-                  <SelectItem key={base} value={base} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                    {rotuloBase(base)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900/90 px-2.5 text-xs text-zinc-100 transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <span className="truncate font-semibold">
+                    {basesSelecionadas.length === 0
+                      ? "Todas as bases"
+                      : `${basesSelecionadas.length} selecionada${basesSelecionadas.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-zinc-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={4}
+                className="w-52 border-zinc-800 bg-zinc-900 p-1.5 text-zinc-100"
+              >
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Selecionar bases
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBasesSelecionadas([])}
+                    className="text-[10px] font-bold text-amber-300 hover:text-amber-200"
+                  >
+                    Todas
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {basesDisponiveis.map((base) => {
+                    const marcada = basesSelecionadas.includes(base);
+                    return (
+                      <label
+                        key={base}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-zinc-800"
+                      >
+                        <Checkbox
+                          checked={marcada}
+                          onCheckedChange={() =>
+                            setBasesSelecionadas((prev) =>
+                              marcada ? prev.filter((b) => b !== base) : [...prev, base],
+                            )
+                          }
+                          className="border-zinc-600 data-[state=checked]:border-amber-400 data-[state=checked]:bg-amber-400 data-[state=checked]:text-zinc-950"
+                        />
+                        <span className="truncate font-semibold">{rotuloBase(base)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Filtro: Tipo */}
