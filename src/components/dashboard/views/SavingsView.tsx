@@ -397,7 +397,7 @@ export function SavingsView({
         return { ...linha, ofensores };
       })
       .sort((a, b) => a.year - b.year || a.week - b.week);
-  }, [importacoes, itensHistoricoFiltrados]);
+  }, [importacoes, itensHistoricoFiltrados, todasSemanas, semanasSelecionadas]);
 
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
