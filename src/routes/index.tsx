@@ -61,24 +61,36 @@ function Dashboard() {
 
   const laborStats = calculateLaborStats(laborPremises);
 
-  const { data: projecaoReal } = useQuery({
-    queryKey: ["projecao_anual_real"],
+  const { data: projecaoEmbu } = useQuery({
+    queryKey: ["economia_potencial_embu"],
     queryFn: async () => {
       const { data: imps, error } = await supabase
         .from("weekly_imports")
-        .select("id")
+        .select("id, week_number")
         .eq("status", "completed")
-        .eq("is_current", true);
+        .eq("is_current", true)
+        .in("week_number", [31, 33, 34, 38]);
       if (error) throw error;
       if (!imps?.length) return null;
       const { data: itens, error: e2 } = await supabase
         .from("weekly_items")
-        .select("amount")
+        .select("base, service, amount")
         .in("import_id", imps.map((i) => i.id));
       if (e2) throw e2;
-      const total = (itens ?? []).reduce((s, i) => s + Math.abs(Number(i.amount) || 0), 0);
-      const media = total / imps.length;
-      return { media, anual: media * 52, semanas: imps.length };
+      const porBase = new Map<string, number>();
+      for (const i of itens ?? []) {
+        const base = i.base === "ESP17" || i.service === "SSP34" ? "ESP17" : i.base;
+        if (!base || base === "-") continue;
+        porBase.set(base, (porBase.get(base) ?? 0) + Math.abs(Number(i.amount) || 0));
+      }
+      // 4 semanas ≈ 1 mês: o total do período é a média mensal da base
+      const mediaEmbu = porBase.get("ESP17") ?? 0;
+      let economiaMensal = 0;
+      for (const [codigo, total] of porBase) {
+        if (codigo === "ESP17") continue;
+        economiaMensal += Math.max(0, total - mediaEmbu);
+      }
+      return { anual: economiaMensal * 12, mediaEmbu, semanas: imps.length };
     },
   });
 
@@ -165,14 +177,14 @@ function Dashboard() {
             </button>
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
               <p className="text-[11px] uppercase tracking-wider text-white">
-                Descontos anuais projetados (real)
+                Economia potencial anual (ref. Embu)
               </p>
-              <p className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {projecaoReal ? brl(projecaoReal.anual) : "—"}
+              <p className="text-xl font-extrabold tabular-nums text-secondary sm:text-2xl">
+                {projecaoEmbu ? brl(projecaoEmbu.anual) : "—"}
               </p>
-              {projecaoReal && (
+              {projecaoEmbu && (
                 <p className="text-[11px] font-semibold text-white/80">
-                  Média {brl(projecaoReal.media)}/sem × 52 · {projecaoReal.semanas} semanas
+                  Se todas as bases tivessem a média de Embu ({brl(projecaoEmbu.mediaEmbu)}/mês) · W31–W38
                 </p>
               )}
             </div>
