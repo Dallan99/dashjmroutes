@@ -170,7 +170,7 @@ export function SavingsView({
   } = useWeeklyImports();
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
   const [importacaoSelecionada, setImportacaoSelecionada] = useState(TODAS_AS_SEMANAS);
-  const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
+  const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
@@ -258,23 +258,24 @@ export function SavingsView({
     return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [itensEscopo]);
 
+  /** Base conta como "todas" quando nenhuma base específica está marcada. */
+  const matchBase = (b: string) => basesSelecionadas.length === 0 || basesSelecionadas.includes(b);
+
   const itensFiltrados = useMemo(() => {
     return itensEscopo.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase && matchTipo;
+      return matchBase(b) && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensEscopo]);
+  }, [basesSelecionadas, tipoSelecionado, itensEscopo]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase && matchTipo;
+      return matchBase(b) && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensHistorico]);
+  }, [basesSelecionadas, tipoSelecionado, itensHistorico]);
 
   const rankingFiltrado = useMemo(() => {
     const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
@@ -287,9 +288,8 @@ export function SavingsView({
       const base = codigoOperacao(item.base, item.service);
       if (!base) continue;
 
-      const matchBase = baseSelecionada === "__todas_as_bases__" || base === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(base) === tipoSelecionado;
-      if (!matchBase || !matchTipo) continue;
+      if (!matchBase(base) || !matchTipo) continue;
 
       const valoresDaBase = valoresPorBaseESemana.get(base) ?? new Map<string, number>();
       valoresDaBase.set(item.import_id, (valoresDaBase.get(item.import_id) ?? 0) + item.amount);
