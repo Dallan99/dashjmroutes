@@ -312,9 +312,10 @@ export function SavingsView({
     return itensHistorico.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase(b) && matchTipo;
+      return matchBase(b) && matchTipo && matchMes(item);
     });
-  }, [basesSelecionadas, tipoSelecionado, itensHistorico]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basesSelecionadas, tipoSelecionado, itensHistorico, mesesSelecionados]);
 
   const rankingFiltrado = useMemo(() => {
     const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
@@ -360,8 +361,11 @@ export function SavingsView({
   }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
+    const importacoesGrafico = todasSemanas
+      ? importacoes
+      : importacoes.filter((imp) => semanasSelecionadas.includes(imp.id));
     const totaisPorImportacao = new Map(
-      importacoes.map((imp) => [
+      importacoesGrafico.map((imp) => [
         imp.id,
         { semana: imp.week_code, year: imp.year, week: imp.week_number, valor: 0, registros: 0 },
       ]),
