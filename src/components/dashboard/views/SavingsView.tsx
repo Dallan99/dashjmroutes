@@ -318,7 +318,7 @@ export function SavingsView({
         statusAtual: mediaSemanal <= LIMITE_SAUDAVEL_OPERACAO ? "Saudável" as const : "Ofensor" as const,
       };
     }).sort((a, b) => b.mediaSemanal - a.mediaSemanal);
-  }, [anoRanking, baseSelecionada, importacoes, itensHistorico, tipoSelecionado]);
+  }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const totaisPorImportacao = new Map(
