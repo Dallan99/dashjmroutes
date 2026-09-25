@@ -17,6 +17,7 @@ import {
   Building2,
   CalendarRange,
   Check,
+  ChevronDown,
   Clock,
   FileText,
   Filter,
@@ -45,6 +46,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -167,7 +170,7 @@ export function SavingsView({
   } = useWeeklyImports();
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
   const [importacaoSelecionada, setImportacaoSelecionada] = useState(TODAS_AS_SEMANAS);
-  const [baseSelecionada, setBaseSelecionada] = useState("__todas_as_bases__");
+  const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
@@ -251,27 +254,34 @@ export function SavingsView({
   const basesDisponiveis = useMemo(() => {
     const naSemana = new Set(itensEscopo.map((i) => codigoOperacao(i.base, i.service)).filter(Boolean));
     const oficiais = Object.keys(OPERACOES_OFICIAIS);
-    const uniao = Array.from(new Set([...oficiais, ...naSemana]));
-    return uniao.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    // Deduplica por rótulo final: códigos oficiais que resolvem para o mesmo
+    // XPT (ex.: SSP15 → ESP16) não devem aparecer duas vezes no filtro.
+    const porRotulo = new Map<string, string>();
+    for (const codigo of [...oficiais, ...naSemana]) {
+      const rotulo = rotuloBase(codigo);
+      if (!porRotulo.has(rotulo)) porRotulo.set(rotulo, codigo);
+    }
+    return Array.from(porRotulo.values()).sort((a, b) => rotuloBase(a).localeCompare(rotuloBase(b), "pt-BR"));
   }, [itensEscopo]);
+
+  /** Base conta como "todas" quando nenhuma base específica está marcada. */
+  const matchBase = (b: string) => basesSelecionadas.length === 0 || basesSelecionadas.includes(b);
 
   const itensFiltrados = useMemo(() => {
     return itensEscopo.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase && matchTipo;
+      return matchBase(b) && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensEscopo]);
+  }, [basesSelecionadas, tipoSelecionado, itensEscopo]);
 
   const itensHistoricoFiltrados = useMemo(() => {
     return itensHistorico.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
-      const matchBase = baseSelecionada === "__todas_as_bases__" || b === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase && matchTipo;
+      return matchBase(b) && matchTipo;
     });
-  }, [baseSelecionada, tipoSelecionado, itensHistorico]);
+  }, [basesSelecionadas, tipoSelecionado, itensHistorico]);
 
   const rankingFiltrado = useMemo(() => {
     const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
@@ -284,9 +294,8 @@ export function SavingsView({
       const base = codigoOperacao(item.base, item.service);
       if (!base) continue;
 
-      const matchBase = baseSelecionada === "__todas_as_bases__" || base === baseSelecionada;
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(base) === tipoSelecionado;
-      if (!matchBase || !matchTipo) continue;
+      if (!matchBase(base) || !matchTipo) continue;
 
       const valoresDaBase = valoresPorBaseESemana.get(base) ?? new Map<string, number>();
       valoresDaBase.set(item.import_id, (valoresDaBase.get(item.import_id) ?? 0) + item.amount);
@@ -315,7 +324,7 @@ export function SavingsView({
         statusAtual: mediaSemanal <= LIMITE_SAUDAVEL_OPERACAO ? "Saudável" as const : "Ofensor" as const,
       };
     }).sort((a, b) => b.mediaSemanal - a.mediaSemanal);
-  }, [anoRanking, baseSelecionada, importacoes, itensHistorico, tipoSelecionado]);
+  }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const totaisPorImportacao = new Map(
@@ -496,24 +505,64 @@ export function SavingsView({
             </Select>
           </div>
 
-          {/* Filtro: Base */}
+          {/* Filtro: Base (múltipla seleção) */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Base</Label>
-            <Select value={baseSelecionada} onValueChange={setBaseSelecionada}>
-              <SelectTrigger className="h-9 border-zinc-800 bg-zinc-900/90 text-xs text-zinc-100 focus:ring-amber-400">
-                <SelectValue placeholder="Todas as bases" />
-              </SelectTrigger>
-              <SelectContent className="max-h-56 border-zinc-800 bg-zinc-900 text-zinc-100">
-                <SelectItem value="__todas_as_bases__" className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                  Todas as bases
-                </SelectItem>
-                {basesDisponiveis.map((base) => (
-                  <SelectItem key={base} value={base} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                    {rotuloBase(base)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900/90 px-2.5 text-xs text-zinc-100 transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <span className="truncate font-semibold">
+                    {basesSelecionadas.length === 0
+                      ? "Todas as bases"
+                      : `${basesSelecionadas.length} selecionada${basesSelecionadas.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-zinc-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={4}
+                className="w-52 border-zinc-800 bg-zinc-900 p-1.5 text-zinc-100"
+              >
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Selecionar bases
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBasesSelecionadas([])}
+                    className="text-[10px] font-bold text-amber-300 hover:text-amber-200"
+                  >
+                    Todas
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {basesDisponiveis.map((base) => {
+                    const marcada = basesSelecionadas.includes(base);
+                    return (
+                      <label
+                        key={base}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-zinc-800"
+                      >
+                        <Checkbox
+                          checked={marcada}
+                          onCheckedChange={() =>
+                            setBasesSelecionadas((prev) =>
+                              marcada ? prev.filter((b) => b !== base) : [...prev, base],
+                            )
+                          }
+                          className="border-zinc-600 data-[state=checked]:border-amber-400 data-[state=checked]:bg-amber-400 data-[state=checked]:text-zinc-950"
+                        />
+                        <span className="truncate font-semibold">{rotuloBase(base)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Filtro: Tipo */}
