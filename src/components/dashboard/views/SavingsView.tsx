@@ -169,7 +169,7 @@ export function SavingsView({
     refetch: recarregarImportacoes,
   } = useWeeklyImports();
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
-  const [importacaoSelecionada, setImportacaoSelecionada] = useState(TODAS_AS_SEMANAS);
+  const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
@@ -177,18 +177,22 @@ export function SavingsView({
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
-  const todasSemanas = importacaoSelecionada === TODAS_AS_SEMANAS;
+  const todasSemanas = semanasSelecionadas.length === 0;
 
   useEffect(() => {
-    if (importacoes.length > 0 && !todasSemanas) {
-      const selecionadaExiste = importacoes.some((item) => item.id === importacaoSelecionada);
-      if (!selecionadaExiste) {
-        setImportacaoSelecionada(importacoes[0]!.id);
-      }
+    if (importacoes.length === 0 || semanasSelecionadas.length === 0) return;
+    const validas = new Set(importacoes.map((item) => item.id));
+    const restantes = semanasSelecionadas.filter((id) => validas.has(id));
+    if (restantes.length !== semanasSelecionadas.length) {
+      setSemanasSelecionadas(restantes);
     }
-  }, [importacaoSelecionada, importacoes, todasSemanas]);
+  }, [importacoes, semanasSelecionadas]);
 
-  const importacaoAtual = todasSemanas ? null : (importacoes.find((item) => item.id === importacaoSelecionada) ?? null);
+  /** Com exatamente uma semana marcada, ela vira a "semana ativa" (observações, exclusão). */
+  const importacaoAtual =
+    semanasSelecionadas.length === 1
+      ? (importacoes.find((item) => item.id === semanasSelecionadas[0]) ?? null)
+      : null;
 
   useEffect(() => {
     if (importacaoAtual && anoRanking === null) {
@@ -196,12 +200,15 @@ export function SavingsView({
     }
   }, [anoRanking, importacaoAtual]);
 
-  const { data: itensSemana = [], isLoading: carregandoItens, isError: erroItens, refetch: recarregarItens } = useWeeklyItems(importacaoAtual?.id);
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
 
-  /** Itens do escopo ativo: semana selecionada ou todas as semanas importadas. */
-  const itensEscopo = todasSemanas ? itensHistorico : itensSemana;
+  /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro. */
+  const itensEscopo = useMemo(() => {
+    if (todasSemanas) return itensHistorico;
+    const ids = new Set(semanasSelecionadas);
+    return itensHistorico.filter((item) => ids.has(item.import_id));
+  }, [todasSemanas, semanasSelecionadas, itensHistorico]);
 
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
@@ -375,7 +382,7 @@ export function SavingsView({
       .filter((i) => getOperationType(codigoOperacao(i.base, i.service)) === "SEM BASE")
       .reduce((s, i) => s + (i.amount ?? 0), 0);
 
-    const semanasNoEscopo = todasSemanas ? importacoes.length : 1;
+    const semanasNoEscopo = todasSemanas ? importacoes.length : semanasSelecionadas.length;
     const mediaSemanal = semanasNoEscopo > 0 ? totalGeral / semanasNoEscopo : 0;
 
     const porBase = new Map<string, number>();
@@ -587,24 +594,68 @@ export function SavingsView({
             </div>
           </div>
 
-          {/* Filtro: Semana */}
+          {/* Filtro: Semana (múltipla seleção) */}
           <div className="space-y-1.5 pt-1">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Semana</Label>
-            <Select value={importacaoSelecionada} onValueChange={setImportacaoSelecionada}>
-              <SelectTrigger className="h-9 border-zinc-800 bg-zinc-900/90 text-xs text-zinc-100 focus:ring-amber-400">
-                <SelectValue placeholder="Selecione a semana" />
-              </SelectTrigger>
-              <SelectContent className="border-zinc-800 bg-zinc-900 text-zinc-100">
-                <SelectItem value={TODAS_AS_SEMANAS} className="text-xs font-bold text-amber-300 hover:bg-zinc-800 focus:bg-zinc-800">
-                  Todas as semanas
-                </SelectItem>
-                {importacoes.map((item) => (
-                  <SelectItem key={item.id} value={item.id} className="text-xs hover:bg-zinc-800 focus:bg-zinc-800">
-                    {item.week_code} ({item.year})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900/90 px-2.5 text-xs text-zinc-100 transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <span className="truncate font-semibold">
+                    {todasSemanas
+                      ? "Todas as semanas"
+                      : semanasSelecionadas.length === 1
+                        ? `${importacaoAtual?.week_code} (${importacaoAtual?.year})`
+                        : `${semanasSelecionadas.length} selecionada${semanasSelecionadas.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-zinc-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={4}
+                className="w-52 border-zinc-800 bg-zinc-900 p-1.5 text-zinc-100"
+              >
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Selecionar semanas
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSemanasSelecionadas([])}
+                    className="text-[10px] font-bold text-amber-300 hover:text-amber-200"
+                  >
+                    Todas
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {importacoes.map((item) => {
+                    const marcada = semanasSelecionadas.includes(item.id);
+                    return (
+                      <label
+                        key={item.id}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-zinc-800"
+                      >
+                        <Checkbox
+                          checked={marcada}
+                          onCheckedChange={() =>
+                            setSemanasSelecionadas((prev) =>
+                              marcada ? prev.filter((id) => id !== item.id) : [...prev, item.id],
+                            )
+                          }
+                          className="border-zinc-600 data-[state=checked]:border-amber-400 data-[state=checked]:bg-amber-400 data-[state=checked]:text-zinc-950"
+                        />
+                        <span className="truncate font-semibold">
+                          {item.week_code} ({item.year})
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Botão Importar semana */}
@@ -746,7 +797,13 @@ export function SavingsView({
                 <ShieldAlert className="size-4 text-destructive" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Top 5 ofensores</h3>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground">{todasSemanas ? "Todas as semanas" : `Semana ${importacaoAtual?.week_code}`}</span>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {todasSemanas
+                  ? "Todas as semanas"
+                  : semanasSelecionadas.length === 1
+                    ? `Semana ${importacaoAtual?.week_code}`
+                    : `${semanasSelecionadas.length} semanas selecionadas`}
+              </span>
             </div>
 
             <div className="mt-3 space-y-2.5">
