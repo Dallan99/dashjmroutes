@@ -696,6 +696,68 @@ export function SavingsView({
           </div>
 
           {/* Botão Importar semana */}
+          {/* Filtro: Mês (múltipla seleção) */}
+          <div className="space-y-1.5 pt-1">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Mês</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900/90 px-2.5 text-xs text-zinc-100 transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <span className="truncate font-semibold">
+                    {mesesSelecionados.length === 0
+                      ? "Todos os meses"
+                      : mesesSelecionados.length === 1
+                        ? rotuloMes(mesesSelecionados[0]!)
+                        : `${mesesSelecionados.length} selecionados`}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-zinc-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={4}
+                className="w-52 border-zinc-800 bg-zinc-900 p-1.5 text-zinc-100"
+              >
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Selecionar meses
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMesesSelecionados([])}
+                    className="text-[10px] font-bold text-amber-300 hover:text-amber-200"
+                  >
+                    Todos
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {mesesDisponiveis.map((mes) => {
+                    const marcado = mesesSelecionados.includes(mes);
+                    return (
+                      <label
+                        key={mes}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-zinc-800"
+                      >
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={() =>
+                            setMesesSelecionados((prev) =>
+                              marcado ? prev.filter((m) => m !== mes) : [...prev, mes],
+                            )
+                          }
+                          className="border-zinc-600 data-[state=checked]:border-amber-400 data-[state=checked]:bg-amber-400 data-[state=checked]:text-zinc-950"
+                        />
+                        <span className="truncate font-semibold">{rotuloMes(mes)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="border-t border-zinc-800/80 pt-3">
             <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
           </div>
