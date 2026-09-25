@@ -114,6 +114,13 @@ function rotuloOrigem(item: { base: string | null; service: string | null }) {
   return normalizarCodigoBase(item.base) || normalizarCodigoBase(item.service) || "Sem base";
 }
 
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function rotuloMes(mes: string) {
+  const [ano, mm] = mes.split("-");
+  return `${MESES_ABREV[Number(mm) - 1] ?? mm}/${ano}`;
+}
+
 type EvolucaoPonto = {
   semana: string;
   year: number;
@@ -171,6 +178,7 @@ export function SavingsView({
   const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
   const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
+  const [mesesSelecionados, setMesesSelecionados] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
   const [anoRanking, setAnoRanking] = useState<number | null>(null);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
@@ -203,12 +211,37 @@ export function SavingsView({
   const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
   const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
 
-  /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro. */
+  const importacaoPorId = useMemo(() => new Map(importacoes.map((i) => [i.id, i])), [importacoes]);
+
+  /** Mês do item (AAAA-MM): data do evento; sem data, aproxima pela semana ISO da importação. */
+  const mesDoItem = (item: (typeof itensHistorico)[number]): string | null => {
+    if (item.event_date) return item.event_date.slice(0, 7);
+    const imp = importacaoPorId.get(item.import_id);
+    if (!imp) return null;
+    const d = new Date(Date.UTC(imp.year, 0, 1 + (imp.week_number - 1) * 7));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const matchMes = (item: (typeof itensHistorico)[number]) =>
+    mesesSelecionados.length === 0 || mesesSelecionados.includes(mesDoItem(item) ?? "");
+
+  const mesesDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of itensHistorico) {
+      const m = mesDoItem(item);
+      if (m) set.add(m);
+    }
+    return Array.from(set).sort().reverse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensHistorico, importacaoPorId]);
+
+  /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro, respeitando o filtro de mês. */
   const itensEscopo = useMemo(() => {
-    if (todasSemanas) return itensHistorico;
     const ids = new Set(semanasSelecionadas);
-    return itensHistorico.filter((item) => ids.has(item.import_id));
-  }, [todasSemanas, semanasSelecionadas, itensHistorico]);
+    const base = todasSemanas ? itensHistorico : itensHistorico.filter((item) => ids.has(item.import_id));
+    return base.filter(matchMes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasSemanas, semanasSelecionadas, itensHistorico, mesesSelecionados]);
 
   const excluirSemana = async () => {
     if (!importacaoAtual) return;
@@ -286,9 +319,10 @@ export function SavingsView({
     return itensHistorico.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase(b) && matchTipo;
+      return matchBase(b) && matchTipo && matchMes(item);
     });
-  }, [basesSelecionadas, tipoSelecionado, itensHistorico]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basesSelecionadas, tipoSelecionado, itensHistorico, mesesSelecionados]);
 
   const rankingFiltrado = useMemo(() => {
     const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
@@ -334,8 +368,11 @@ export function SavingsView({
   }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
+    const importacoesGrafico = todasSemanas
+      ? importacoes
+      : importacoes.filter((imp) => semanasSelecionadas.includes(imp.id));
     const totaisPorImportacao = new Map(
-      importacoes.map((imp) => [
+      importacoesGrafico.map((imp) => [
         imp.id,
         { semana: imp.week_code, year: imp.year, week: imp.week_number, valor: 0, registros: 0 },
       ]),
@@ -367,7 +404,7 @@ export function SavingsView({
         return { ...linha, ofensores };
       })
       .sort((a, b) => a.year - b.year || a.week - b.week);
-  }, [importacoes, itensHistoricoFiltrados]);
+  }, [importacoes, itensHistoricoFiltrados, todasSemanas, semanasSelecionadas]);
 
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
@@ -659,6 +696,68 @@ export function SavingsView({
           </div>
 
           {/* Botão Importar semana */}
+          {/* Filtro: Mês (múltipla seleção) */}
+          <div className="space-y-1.5 pt-1">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Mês</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900/90 px-2.5 text-xs text-zinc-100 transition-colors hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <span className="truncate font-semibold">
+                    {mesesSelecionados.length === 0
+                      ? "Todos os meses"
+                      : mesesSelecionados.length === 1
+                        ? rotuloMes(mesesSelecionados[0]!)
+                        : `${mesesSelecionados.length} selecionados`}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-zinc-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={4}
+                className="w-52 border-zinc-800 bg-zinc-900 p-1.5 text-zinc-100"
+              >
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Selecionar meses
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMesesSelecionados([])}
+                    className="text-[10px] font-bold text-amber-300 hover:text-amber-200"
+                  >
+                    Todos
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {mesesDisponiveis.map((mes) => {
+                    const marcado = mesesSelecionados.includes(mes);
+                    return (
+                      <label
+                        key={mes}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-zinc-800"
+                      >
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={() =>
+                            setMesesSelecionados((prev) =>
+                              marcado ? prev.filter((m) => m !== mes) : [...prev, mes],
+                            )
+                          }
+                          className="border-zinc-600 data-[state=checked]:border-amber-400 data-[state=checked]:bg-amber-400 data-[state=checked]:text-zinc-950"
+                        />
+                        <span className="truncate font-semibold">{rotuloMes(mes)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="border-t border-zinc-800/80 pt-3">
             <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
           </div>
