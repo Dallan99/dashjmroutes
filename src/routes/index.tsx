@@ -126,7 +126,7 @@ function Dashboard() {
     } as any);
   }, [selecionadas, eficacia, view, laborPremises, navigate]);
 
-  const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
+  const setView = (newView: "savings" | "mao-de-obra" | "consolidado" | "motoristas") => {
     if (newView === "savings") {
       navigate({
         search: () => ({ view: "savings" }),
