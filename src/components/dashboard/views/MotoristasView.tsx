@@ -44,6 +44,7 @@ export function MotoristasView() {
 
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<string>("todos");
+  const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [selecionado, setSelecionado] = useState<MotoristaRow | null>(null);
 
   const semanaPorImport = useMemo(() => {
