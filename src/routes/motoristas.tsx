@@ -116,7 +116,7 @@ function MotoristasPage() {
             </p>
           </div>
           <Button asChild variant="outline" className="w-fit">
-            <Link to="/">
+            <Link to="/" search={{ view: "savings" }}>
               <ArrowLeft className="mr-2 size-4" /> Voltar ao painel
             </Link>
           </Button>
