@@ -764,7 +764,7 @@ export function SavingsView({
           </div>
           <Link
             to="/motoristas"
-            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[11px] font-semibold text-amber-300 transition-colors hover:bg-amber-400/10 hover:text-amber-200"
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-amber-400 text-xs font-bold text-zinc-950 shadow-sm transition-colors hover:bg-amber-300"
           >
             <Trophy className="size-3.5" />
             Ranking de motoristas
