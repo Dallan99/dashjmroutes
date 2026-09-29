@@ -761,6 +761,13 @@ export function SavingsView({
           <div className="border-t border-zinc-800/80 pt-3">
             <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
           </div>
+          <Link
+            to="/motoristas"
+            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[11px] font-semibold text-amber-300 transition-colors hover:bg-amber-400/10 hover:text-amber-200"
+          >
+            <Trophy className="size-3.5" />
+            Ranking de motoristas
+          </Link>
           <button
             type="button"
             onClick={() => setConfirmarExclusao(true)}
