@@ -81,6 +81,7 @@ export function MotoristasView() {
   const ranking = useMemo<MotoristaRow[]>(() => {
     const mapa = new Map<string, MotoristaRow>();
     for (const item of itens) {
+      if (itensIdsPorSemana && !itensIdsPorSemana.has(item.import_id)) continue;
       const motorista = (item.driver ?? "").trim();
       if (!motorista) continue;
       const codigo = normalizarCodigoBase(resolverBaseOperacao(item.base, item.service)) || "SEM BASE";
@@ -99,7 +100,7 @@ export function MotoristasView() {
       mapa.set(chave, atual);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [itens]);
+  }, [itens, itensIdsPorSemana]);
 
   const basesDisponiveis = useMemo(() => {
     const set = new Map<string, string>();
