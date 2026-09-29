@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MotoristasRouteImport } from './routes/motoristas'
 import { Route as RegrasClassificacaoRouteImport } from './routes/regras-classificacao'
 import { Route as BaseBaseIdRouteImport } from './routes/base.$baseId'
 import { Route as MetricaMetricaIdRouteImport } from './routes/metrica.$metricaId'
@@ -17,6 +18,11 @@ import { Route as MetricaMetricaIdRouteImport } from './routes/metrica.$metricaI
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MotoristasRoute = MotoristasRouteImport.update({
+  id: '/motoristas',
+  path: '/motoristas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegrasClassificacaoRoute = RegrasClassificacaoRouteImport.update({
@@ -37,12 +43,14 @@ const MetricaMetricaIdRoute = MetricaMetricaIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/motoristas': typeof MotoristasRoute
   '/regras-classificacao': typeof RegrasClassificacaoRoute
   '/base/$baseId': typeof BaseBaseIdRoute
   '/metrica/$metricaId': typeof MetricaMetricaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/motoristas': typeof MotoristasRoute
   '/regras-classificacao': typeof RegrasClassificacaoRoute
   '/base/$baseId': typeof BaseBaseIdRoute
   '/metrica/$metricaId': typeof MetricaMetricaIdRoute
@@ -50,6 +58,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/motoristas': typeof MotoristasRoute
   '/regras-classificacao': typeof RegrasClassificacaoRoute
   '/base/$baseId': typeof BaseBaseIdRoute
   '/metrica/$metricaId': typeof MetricaMetricaIdRoute
@@ -57,12 +66,22 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/regras-classificacao' | '/base/$baseId' | '/metrica/$metricaId'
+    | '/'
+    | '/motoristas'
+    | '/regras-classificacao'
+    | '/base/$baseId'
+    | '/metrica/$metricaId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/regras-classificacao' | '/base/$baseId' | '/metrica/$metricaId'
+  to:
+    | '/'
+    | '/motoristas'
+    | '/regras-classificacao'
+    | '/base/$baseId'
+    | '/metrica/$metricaId'
   id:
     | '__root__'
     | '/'
+    | '/motoristas'
     | '/regras-classificacao'
     | '/base/$baseId'
     | '/metrica/$metricaId'
@@ -70,6 +89,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MotoristasRoute: typeof MotoristasRoute
   RegrasClassificacaoRoute: typeof RegrasClassificacaoRoute
   BaseBaseIdRoute: typeof BaseBaseIdRoute
   MetricaMetricaIdRoute: typeof MetricaMetricaIdRoute
@@ -82,6 +102,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/motoristas': {
+      id: '/motoristas'
+      path: '/motoristas'
+      fullPath: '/motoristas'
+      preLoaderRoute: typeof MotoristasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/regras-classificacao': {
@@ -110,6 +137,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MotoristasRoute: MotoristasRoute,
   RegrasClassificacaoRoute: RegrasClassificacaoRoute,
   BaseBaseIdRoute: BaseBaseIdRoute,
   MetricaMetricaIdRoute: MetricaMetricaIdRoute,
