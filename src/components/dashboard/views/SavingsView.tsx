@@ -26,6 +26,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Trophy,
   Upload,
   Wallet,
 } from "lucide-react";
