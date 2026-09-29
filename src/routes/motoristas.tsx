@@ -65,6 +65,27 @@ function MotoristasPage() {
 
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<string>("todos");
+  const [selecionado, setSelecionado] = useState<MotoristaRow | null>(null);
+
+  const semanaPorImport = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const imp of importacoes) {
+      mapa.set(imp.id, `W${imp.week} (${imp.year})`);
+    }
+    return mapa;
+  }, [importacoes]);
+
+  const detalhesSelecionado = useMemo(() => {
+    if (!selecionado) return [];
+    return itens
+      .filter((item) => {
+        const motorista = (item.driver ?? "").trim();
+        if (motorista !== selecionado.motorista) return false;
+        const codigo = normalizarCodigoBase(resolverBaseOperacao(item.base, item.service)) || "SEM BASE";
+        return codigo === selecionado.base;
+      })
+      .sort((a, b) => Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0));
+  }, [selecionado, itens]);
 
   const ranking = useMemo<MotoristaRow[]>(() => {
     const mapa = new Map<string, MotoristaRow>();
