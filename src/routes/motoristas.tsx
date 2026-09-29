@@ -1,8 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, Trophy, User, Wallet, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ChevronDown, Trophy, User, Wallet, AlertTriangle, Eye } from "lucide-react";
 import { brl } from "@/components/dashboard/data";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
