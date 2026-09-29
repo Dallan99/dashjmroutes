@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,7 +25,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
-  Trophy,
+
   Upload,
   Wallet,
 } from "lucide-react";
