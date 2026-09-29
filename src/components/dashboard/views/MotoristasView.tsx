@@ -55,17 +55,28 @@ export function MotoristasView() {
     return mapa;
   }, [importacoes]);
 
+  const itensIdsPorSemana = useMemo(() => {
+    const set = new Set(semanasSelecionadas);
+    if (set.size === 0) return null; // null = todas as semanas
+    return new Set(
+      importacoes
+        .filter((imp) => set.has(`W${imp.week_number} (${imp.year})`))
+        .map((imp) => imp.id),
+    );
+  }, [semanasSelecionadas, importacoes]);
+
   const detalhesSelecionado = useMemo(() => {
     if (!selecionado) return [];
     return itens
       .filter((item) => {
+        if (itensIdsPorSemana && !itensIdsPorSemana.has(item.import_id)) return false;
         const motorista = (item.driver ?? "").trim();
         if (motorista !== selecionado.motorista) return false;
         const codigo = normalizarCodigoBase(resolverBaseOperacao(item.base, item.service)) || "SEM BASE";
         return codigo === selecionado.base;
       })
       .sort((a, b) => Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0));
-  }, [selecionado, itens]);
+  }, [selecionado, itens, itensIdsPorSemana]);
 
   const ranking = useMemo<MotoristaRow[]>(() => {
     const mapa = new Map<string, MotoristaRow>();
