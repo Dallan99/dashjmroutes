@@ -281,7 +281,6 @@ export function MotoristasView() {
             )}
           </table>
         </div>
-      </div>
 
       {/* Detalhe do motorista */}
       <Dialog open={selecionado !== null} onOpenChange={(open) => !open && setSelecionado(null)}>

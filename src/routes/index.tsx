@@ -7,11 +7,12 @@ import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
 import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView";
+import { MotoristasView } from "@/components/dashboard/views/MotoristasView";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 const dashboardSearchSchema = z.object({
-  view: z.enum(["savings", "mao-de-obra", "consolidado"]).optional().default("savings"),
+  view: z.enum(["savings", "mao-de-obra", "consolidado", "motoristas"]).optional().default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
   labor: z.string().optional(),
@@ -227,12 +228,17 @@ function Dashboard() {
           >
             Visão Consolidada
           </button>
-          <Link
-            to="/motoristas"
-            className="px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+          <button
+            onClick={() => setView("motoristas")}
+            className={cn(
+              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
+              view === "motoristas"
+                ? "border-secondary text-secondary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+            )}
           >
             Ranking de Motoristas
-          </Link>
+          </button>
         </nav>
 
         <div className="transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
@@ -254,6 +260,7 @@ function Dashboard() {
               impactoMaoDeObra={laborStats.impactoLiquido} 
             />
           )}
+          {view === "motoristas" && <MotoristasView />}
         </div>
       </div>
     </main>
