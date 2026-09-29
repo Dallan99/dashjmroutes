@@ -44,6 +44,7 @@ export function MotoristasView() {
 
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<string>("todos");
+  const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [selecionado, setSelecionado] = useState<MotoristaRow | null>(null);
 
   const semanaPorImport = useMemo(() => {
@@ -54,21 +55,33 @@ export function MotoristasView() {
     return mapa;
   }, [importacoes]);
 
+  const itensIdsPorSemana = useMemo(() => {
+    const set = new Set(semanasSelecionadas);
+    if (set.size === 0) return null; // null = todas as semanas
+    return new Set(
+      importacoes
+        .filter((imp) => set.has(`W${imp.week_number} (${imp.year})`))
+        .map((imp) => imp.id),
+    );
+  }, [semanasSelecionadas, importacoes]);
+
   const detalhesSelecionado = useMemo(() => {
     if (!selecionado) return [];
     return itens
       .filter((item) => {
+        if (itensIdsPorSemana && !itensIdsPorSemana.has(item.import_id)) return false;
         const motorista = (item.driver ?? "").trim();
         if (motorista !== selecionado.motorista) return false;
         const codigo = normalizarCodigoBase(resolverBaseOperacao(item.base, item.service)) || "SEM BASE";
         return codigo === selecionado.base;
       })
       .sort((a, b) => Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0));
-  }, [selecionado, itens]);
+  }, [selecionado, itens, itensIdsPorSemana]);
 
   const ranking = useMemo<MotoristaRow[]>(() => {
     const mapa = new Map<string, MotoristaRow>();
     for (const item of itens) {
+      if (itensIdsPorSemana && !itensIdsPorSemana.has(item.import_id)) continue;
       const motorista = (item.driver ?? "").trim();
       if (!motorista) continue;
       const codigo = normalizarCodigoBase(resolverBaseOperacao(item.base, item.service)) || "SEM BASE";
@@ -87,7 +100,7 @@ export function MotoristasView() {
       mapa.set(chave, atual);
     }
     return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
-  }, [itens]);
+  }, [itens, itensIdsPorSemana]);
 
   const basesDisponiveis = useMemo(() => {
     const set = new Map<string, string>();
@@ -96,6 +109,14 @@ export function MotoristasView() {
       .map(([codigo, rotulo]) => ({ codigo, rotulo }))
       .sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
   }, [ranking]);
+
+  const semanasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const imp of importacoes) set.add(`W${imp.week_number} (${imp.year})`);
+    return Array.from(set).sort(
+      (a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10),
+    );
+  }, [importacoes]);
 
   const rankingFiltrado = useMemo(
     () =>
@@ -122,6 +143,44 @@ export function MotoristasView() {
 
         {/* Filtros */}
         <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Semana</p>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-40 justify-between font-semibold">
+                  {semanasSelecionadas.length === 0
+                    ? "Todas as semanas"
+                    : `${semanasSelecionadas.length} selecionada(s)`}
+                  <ChevronDown className="size-4 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-2" align="start">
+                <button
+                  className="mb-1 w-full rounded-md px-2 py-1.5 text-left text-sm font-bold hover:bg-accent"
+                  onClick={() => setSemanasSelecionadas([])}
+                >
+                  Todas
+                </button>
+                {semanasDisponiveis.map((s) => (
+                  <label
+                    key={s}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold hover:bg-accent"
+                  >
+                    <Checkbox
+                      checked={semanasSelecionadas.includes(s)}
+                      onCheckedChange={(checked) =>
+                        setSemanasSelecionadas((prev) =>
+                          checked ? [...prev, s] : prev.filter((x) => x !== s),
+                        )
+                      }
+                    />
+                    {s}
+                  </label>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Base</p>
             <Popover>
