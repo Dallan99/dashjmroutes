@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,6 +227,12 @@ function Dashboard() {
           >
             Visão Consolidada
           </button>
+          <Link
+            to="/motoristas"
+            className="px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+          >
+            Ranking de Motoristas
+          </Link>
         </nav>
 
         <div className="transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
