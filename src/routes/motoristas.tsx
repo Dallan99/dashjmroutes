@@ -345,7 +345,7 @@ function MotoristasPage() {
                 <div className="rounded-lg border border-border bg-muted/40 p-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Maior desconto</p>
                   <p className="mt-1 text-xl font-extrabold tabular-nums text-destructive">
-                    {brl(detalhesSelecionado.length > 0 ? Math.abs(Number(detalhesSelecionado[0].amount) || 0) : 0)}
+                    {brl(detalhesSelecionado.length > 0 ? Math.abs(Number(detalhesSelecionado[0]?.amount) || 0) : 0)}
                   </p>
                 </div>
               </div>
