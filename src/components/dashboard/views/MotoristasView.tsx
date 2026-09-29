@@ -110,6 +110,14 @@ export function MotoristasView() {
       .sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
   }, [ranking]);
 
+  const semanasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const imp of importacoes) set.add(`W${imp.week_number} (${imp.year})`);
+    return Array.from(set).sort(
+      (a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10),
+    );
+  }, [importacoes]);
+
   const rankingFiltrado = useMemo(
     () =>
       ranking.filter(
