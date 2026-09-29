@@ -144,6 +144,44 @@ export function MotoristasView() {
         {/* Filtros */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Semana</p>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-40 justify-between font-semibold">
+                  {semanasSelecionadas.length === 0
+                    ? "Todas as semanas"
+                    : `${semanasSelecionadas.length} selecionada(s)`}
+                  <ChevronDown className="size-4 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-2" align="start">
+                <button
+                  className="mb-1 w-full rounded-md px-2 py-1.5 text-left text-sm font-bold hover:bg-accent"
+                  onClick={() => setSemanasSelecionadas([])}
+                >
+                  Todas
+                </button>
+                {semanasDisponiveis.map((s) => (
+                  <label
+                    key={s}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold hover:bg-accent"
+                  >
+                    <Checkbox
+                      checked={semanasSelecionadas.includes(s)}
+                      onCheckedChange={(checked) =>
+                        setSemanasSelecionadas((prev) =>
+                          checked ? [...prev, s] : prev.filter((x) => x !== s),
+                        )
+                      }
+                    />
+                    {s}
+                  </label>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Base</p>
             <Popover>
               <PopoverTrigger asChild>
