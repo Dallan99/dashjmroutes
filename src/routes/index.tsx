@@ -3,13 +3,12 @@ import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
-import { LaborView } from "@/components/dashboard/views/LaborView";
-import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView";
+import { MotoristasView } from "@/components/dashboard/views/MotoristasView";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 const dashboardSearchSchema = z.object({
-  view: z.enum(["savings", "savings-reais", "mao-de-obra", "consolidado"]).optional().default("savings"),
+  view: z.enum(["savings", "savings-reais", "motoristas"]).optional().default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
   labor: z.string().optional(),
@@ -34,8 +33,6 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-import { MO_CONFIG, calculateLaborStats, LaborPremises } from "@/components/dashboard/labor-data";
-
 function Dashboard() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/" });
@@ -50,14 +47,6 @@ function Dashboard() {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem("jm-theme") !== "light";
   });
-
-  // Mão de Obra Simulation State
-  const initialLabor: LaborPremises = view !== "savings" && search.labor 
-    ? JSON.parse(decodeURIComponent(search.labor)) 
-    : MO_CONFIG.VALORES_PADRAO;
-  const [laborPremises, setLaborPremises] = useState<LaborPremises>(initialLabor);
-
-  const laborStats = calculateLaborStats(laborPremises);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -84,13 +73,12 @@ function Dashboard() {
         view,
         bases: selecionadas.join(","),
         eficacia,
-        labor: encodeURIComponent(JSON.stringify(laborPremises)),
       }),
       replace: true,
     } as any);
-  }, [selecionadas, eficacia, view, laborPremises, navigate]);
+  }, [selecionadas, eficacia, view, navigate]);
 
-  const setView = (newView: "savings" | "savings-reais" | "mao-de-obra" | "consolidado") => {
+  const setView = (newView: "savings" | "savings-reais" | "motoristas") => {
     if (newView === "savings") {
       navigate({
         search: () => ({ view: "savings" }),
@@ -177,26 +165,15 @@ function Dashboard() {
             Savings Reais
           </button>
           <button
-            onClick={() => setView("mao-de-obra")}
+            onClick={() => setView("motoristas")}
             className={cn(
               "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
-              view === "mao-de-obra"
+              view === "motoristas"
                 ? "border-secondary text-secondary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
             )}
           >
-            Mão de Obra
-          </button>
-          <button
-            onClick={() => setView("consolidado")}
-            className={cn(
-              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
-              view === "consolidado"
-                ? "border-secondary text-secondary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-            )}
-          >
-            Visão Consolidada
+            Ranking de Motoristas
           </button>
         </nav>
 
@@ -218,16 +195,7 @@ function Dashboard() {
               setEficacia={setEficacia}
             />
           )}
-          {view === "mao-de-obra" && (
-            <LaborView premises={laborPremises} setPremises={setLaborPremises} />
-          )}
-          {view === "consolidado" && (
-            <ConsolidatedView 
-              selecionadas={selecionadas} 
-              eficacia={eficacia} 
-              impactoMaoDeObra={laborStats.impactoLiquido} 
-            />
-          )}
+          {view === "motoristas" && <MotoristasView />}
         </div>
       </div>
     </main>
