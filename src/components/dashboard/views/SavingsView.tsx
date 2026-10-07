@@ -797,7 +797,13 @@ export function SavingsView({
         </section>
 
         {/* Comparativo operacional x reversão do setor de perdas */}
-        {dataMode === "real" && <SavingsComparisonChart />}
+        {dataMode === "real" && (
+          <SavingsComparisonChart
+            selectedWeekKeys={todasSemanas ? undefined : importacoes
+              .filter((item) => semanasSelecionadas.includes(item.id))
+              .map((item) => `${item.year}-${String(item.week_number).padStart(2, "0")}`)}
+          />
+        )}
 
         {/* 4. ÁREA GRANDE: DESCONTOS POR SEMANA */}
         <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
