@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
-import { RealSavingsView } from "@/components/dashboard/views/RealSavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
 import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView";
 import { z } from "zod";
@@ -210,7 +209,15 @@ function Dashboard() {
               setEficacia={setEficacia}
             />
           )}
-          {view === "savings-reais" && <RealSavingsView />}
+          {view === "savings-reais" && (
+            <SavingsView
+              dataMode="real"
+              selecionadas={selecionadas}
+              setSelecionadas={setSelecionadas}
+              eficacia={eficacia}
+              setEficacia={setEficacia}
+            />
+          )}
           {view === "mao-de-obra" && (
             <LaborView premises={laborPremises} setPremises={setLaborPremises} />
           )}
