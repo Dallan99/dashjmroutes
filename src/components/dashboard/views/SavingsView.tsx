@@ -359,12 +359,14 @@ export function SavingsView({
   }, [basesSelecionadas, tipoSelecionado, itensEscopo]);
 
   const itensHistoricoFiltrados = useMemo(() => {
+    const idsSelecionados = new Set(semanasSelecionadas);
     return itensHistorico.filter((item) => {
       const b = codigoOperacao(item.base, item.service);
       const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
-      return matchBase(b) && matchTipo;
+      const matchSemana = todasSemanas || idsSelecionados.has(item.import_id);
+      return matchBase(b) && matchTipo && matchSemana;
     });
-  }, [basesSelecionadas, tipoSelecionado, itensHistorico]);
+  }, [basesSelecionadas, tipoSelecionado, itensHistorico, semanasSelecionadas, todasSemanas]);
 
   const rankingFiltrado = useMemo(() => {
     const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
@@ -410,8 +412,12 @@ export function SavingsView({
   }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
+    const idsSelecionados = new Set(semanasSelecionadas);
+    const importacoesNoEscopo = todasSemanas
+      ? importacoes
+      : importacoes.filter((imp) => idsSelecionados.has(imp.id));
     const totaisPorImportacao = new Map(
-      importacoes.map((imp) => [
+      importacoesNoEscopo.map((imp) => [
         imp.id,
         { semana: imp.week_code, year: imp.year, week: imp.week_number, valor: 0, registros: 0 },
       ]),
@@ -443,7 +449,7 @@ export function SavingsView({
         return { ...linha, ofensores };
       })
       .sort((a, b) => a.year - b.year || a.week - b.week);
-  }, [importacoes, itensHistoricoFiltrados]);
+  }, [importacoes, itensHistoricoFiltrados, semanasSelecionadas, todasSemanas]);
 
   const dadosFinanceiros = useMemo(() => {
     const validos = itensFiltrados.filter((i) => typeof i.amount === "number" && Number.isFinite(i.amount));
