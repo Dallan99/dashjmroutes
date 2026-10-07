@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { FileSpreadsheet, Search, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/components/dashboard/data";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type Row = Record<string, unknown>;
 type Mapping = { charged: string; reversed: string; date: string; base: string; classification: string; status: string };
@@ -57,7 +59,24 @@ async function hashFile(buffer: ArrayBuffer) {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+export function RealSavingsImportButton() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-3 py-2.5 text-xs font-extrabold text-background transition-opacity hover:opacity-90">
+          <Upload className="size-4" /> Importar semana real
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+        <DialogHeader><DialogTitle>Importar Savings Reais</DialogTitle></DialogHeader>
+        <RealSavingsView />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function RealSavingsView() {
+  const queryClient = useQueryClient();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [sheets, setSheets] = useState<{ name: string; rows: Row[] }[]>([]);
@@ -151,6 +170,7 @@ export function RealSavingsView() {
       setMessage(`${payload.length} linhas importadas com sucesso.`);
       setRows([]); setHeaders([]); setSheets([]); setFile(null); setSheet("");
       await reload();
+      await queryClient.invalidateQueries({ queryKey: ["real_savings"] });
     } catch (error) { setMessage(error instanceof Error ? error.message : "Falha na importação."); }
     finally { setBusy(false); }
   };
