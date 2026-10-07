@@ -3,6 +3,9 @@ create table public.real_savings_imports (
   file_name text not null,
   file_hash text not null,
   sheet_name text,
+  week_code text,
+  year integer,
+  week_number integer,
   mapping jsonb not null default '{}'::jsonb,
   valid_rows integer not null default 0 check (valid_rows >= 0),
   rejected_rows integer not null default 0 check (rejected_rows >= 0),
@@ -11,6 +14,7 @@ create table public.real_savings_imports (
   created_at timestamptz not null default now()
 );
 
+create index real_savings_imports_year_week_idx on public.real_savings_imports(year, week_number);
 create unique index real_savings_imports_completed_hash_uk
   on public.real_savings_imports(file_hash)
   where status = 'completed';
