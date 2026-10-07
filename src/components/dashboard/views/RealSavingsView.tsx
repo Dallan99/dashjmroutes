@@ -18,7 +18,7 @@ type Import = { id: string; file_name: string; sheet_name: string | null; valid_
 
 const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classification: "", status: "" };
 function weekFromName(name: string) {
-  const match = name.toUpperCase().match(/W[ _-]?(\\d{1,2})/);
+  const match = name.toUpperCase().match(/W[ _-]?(\d{1,2})/);
   const weekNumber = match ? Number(match[1]) : null;
   return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year: new Date().getFullYear() };
 }
