@@ -189,11 +189,13 @@ export function SavingsView({
         const reference = linked.find((item: any) => item.reference_date)?.reference_date ?? entry.imported_at;
         const date = new Date(reference);
         const firstDay = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-        const weekNumber = Math.max(1, Math.ceil((((date.getTime() - firstDay.getTime()) / 86400000) + firstDay.getUTCDay() + 1) / 7));
+        const derivedWeek = Math.max(1, Math.ceil((((date.getTime() - firstDay.getTime()) / 86400000) + firstDay.getUTCDay() + 1) / 7));
+        const weekNumber = Number(entry.week_number) || derivedWeek;
+        const year = Number(entry.year) || date.getUTCFullYear();
         return {
           id: entry.id,
-          week_code: `W${String(weekNumber).padStart(2, "0")}`,
-          year: date.getUTCFullYear(),
+          week_code: entry.week_code || `W${String(weekNumber).padStart(2, "0")}`,
+          year,
           week_number: weekNumber,
           imported_at: entry.imported_at,
           file_name: entry.file_name,
