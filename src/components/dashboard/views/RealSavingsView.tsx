@@ -17,6 +17,11 @@ type Item = {
 type Import = { id: string; file_name: string; sheet_name: string | null; valid_rows: number; rejected_rows: number; imported_at: string };
 
 const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classification: "", status: "" };
+function weekFromName(name: string) {
+  const match = name.toUpperCase().match(/W[ _-]?(\\d{1,2})/);
+  const weekNumber = match ? Number(match[1]) : null;
+  return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year: new Date().getFullYear() };
+}
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const aliases: Record<keyof Mapping, string[]> = {
   charged: ["valorcobrado", "cobrado", "desconto", "valordesconto", "amount", "valor", "rs"],
@@ -85,7 +90,7 @@ export function RealSavingsView() {
   const [sheets, setSheets] = useState<{ name: string; rows: Row[] }[]>([]);
   const [sheet, setSheet] = useState("");
   const [mapping, setMapping] = useState<Mapping>(EMPTY);
-  const [file, setFile] = useState<{ name: string; hash: string } | null>(null);
+  const [file, setFile] = useState<{ name: string; hash: string; weekNumber: number | null; weekCode: string | null; year: number } | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [imports, setImports] = useState<Import[]>([]);
   const [query, setQuery] = useState("");
@@ -118,7 +123,7 @@ export function RealSavingsView() {
     const parsed = workbook.SheetNames.map((name) => ({
       name, rows: XLSX.utils.sheet_to_json<Row>(workbook.Sheets[name]!, { defval: null, raw: true }),
     })).filter((entry) => entry.rows.length);
-    setFile({ name: selected.name, hash: await hashFile(buffer) });
+    setFile({ name: selected.name, hash: await hashFile(buffer), ...weekFromName(selected.name) });
     setSheets(parsed);
     if (parsed[0]) {
       const hs = Array.from(new Set(parsed[0].rows.flatMap((row) => Object.keys(row)))).filter((h) => h && !h.startsWith("__EMPTY"));
@@ -164,6 +169,7 @@ export function RealSavingsView() {
       if (duplicate) throw new Error("Este arquivo já possui uma importação concluída.");
       const { data: imported, error } = await db.from("real_savings_imports").insert({
         file_name: file.name, file_hash: file.hash, sheet_name: sheet, mapping,
+        week_code: file.weekCode, week_number: file.weekNumber, year: file.year,
         valid_rows: valid.length, rejected_rows: preview.length - valid.length, status: "processing",
       }).select("id").single();
       if (error) throw error;
