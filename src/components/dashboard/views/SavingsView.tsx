@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
+import { RealSavingsImportButton } from "@/components/dashboard/views/RealSavingsView";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -149,6 +150,7 @@ function TooltipOfensores({ active, payload }: { active?: boolean; payload?: { p
 }
 
 interface SavingsViewProps {
+  dataMode?: "operational" | "real";
   selecionadas: string[];
   setSelecionadas: React.Dispatch<React.SetStateAction<string[]>>;
   eficacia: number;
@@ -156,19 +158,78 @@ interface SavingsViewProps {
 }
 
 export function SavingsView({
+  dataMode = "operational",
   selecionadas,
   setSelecionadas,
   eficacia,
   setEficacia,
 }: SavingsViewProps) {
   const queryClient = useQueryClient();
-  const {
-    data: importacoes = [],
-    isLoading: carregandoImportacoes,
-    isError: erroImportacoes,
-    refetch: recarregarImportacoes,
-  } = useWeeklyImports();
-  const { data: historicoImportacoes = [] } = useWeeklyImportsHistory();
+  const weeklyImportsQuery = useWeeklyImports();
+  const weeklyHistoryQuery = useWeeklyImportsHistory();
+  const realSavingsQuery = useQuery({
+    queryKey: ["real_savings", "dashboard"],
+    enabled: dataMode === "real",
+    queryFn: async () => {
+      const db = supabase as any;
+      const [{ data: rawImports, error: importsError }, { data: rawItems, error: itemsError }] = await Promise.all([
+        db.from("real_savings_imports").select("*").eq("status", "completed").order("imported_at", { ascending: false }),
+        db.from("real_savings_items").select("*"),
+      ]);
+      if (importsError) throw importsError;
+      if (itemsError) throw itemsError;
+      const itemsByImport = new Map<string, any[]>();
+      for (const item of rawItems ?? []) {
+        const current = itemsByImport.get(item.import_id) ?? [];
+        current.push(item);
+        itemsByImport.set(item.import_id, current);
+      }
+      const imports = (rawImports ?? []).map((entry: any) => {
+        const linked = itemsByImport.get(entry.id) ?? [];
+        const reference = linked.find((item: any) => item.reference_date)?.reference_date ?? entry.imported_at;
+        const date = new Date(reference);
+        const firstDay = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        const weekNumber = Math.max(1, Math.ceil((((date.getTime() - firstDay.getTime()) / 86400000) + firstDay.getUTCDay() + 1) / 7));
+        return {
+          id: entry.id,
+          week_code: `W${String(weekNumber).padStart(2, "0")}`,
+          year: date.getUTCFullYear(),
+          week_number: weekNumber,
+          imported_at: entry.imported_at,
+          file_name: entry.file_name,
+          status: entry.status,
+          is_current: true,
+          superseded_by: null,
+          superseded_at: null,
+          items_count: linked.length,
+          bases_count: new Set(linked.map((item: any) => item.base).filter(Boolean)).size,
+        };
+      });
+      const items = (rawItems ?? []).map((item: any) => ({
+        id: item.id,
+        import_id: item.import_id,
+        base: item.base,
+        service: null,
+        package_id: null,
+        route_id: null,
+        driver: null,
+        description: item.classification,
+        event_date: item.reference_date,
+        amount: item.real_discount,
+        operational_status: item.status,
+        classification: item.classification,
+        decision: null,
+        evidence_url: null,
+        extra_data: item.extra_data,
+      }));
+      return { imports, items };
+    },
+  });
+  const importacoes = dataMode === "real" ? (realSavingsQuery.data?.imports ?? []) : (weeklyImportsQuery.data ?? []);
+  const historicoImportacoes = dataMode === "real" ? importacoes : (weeklyHistoryQuery.data ?? []);
+  const carregandoImportacoes = dataMode === "real" ? realSavingsQuery.isLoading : weeklyImportsQuery.isLoading;
+  const erroImportacoes = dataMode === "real" ? realSavingsQuery.isError : weeklyImportsQuery.isError;
+  const recarregarImportacoes = dataMode === "real" ? realSavingsQuery.refetch : weeklyImportsQuery.refetch;
   const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
@@ -200,8 +261,12 @@ export function SavingsView({
     }
   }, [anoRanking, importacaoAtual]);
 
-  const { data: itensHistorico = [], isLoading: carregandoHistorico, isError: erroHistorico, refetch: recarregarHistorico } = useWeeklyItemsForImports(importacoes.map((i) => i.id));
-  const { data: observacoesSemana = [] } = useWeekNotes(importacaoAtual?.id);
+  const weeklyItemsQuery = useWeeklyItemsForImports(dataMode === "real" ? [] : importacoes.map((i) => i.id));
+  const itensHistorico = dataMode === "real" ? (realSavingsQuery.data?.items ?? []) : (weeklyItemsQuery.data ?? []);
+  const carregandoHistorico = dataMode === "real" ? realSavingsQuery.isLoading : weeklyItemsQuery.isLoading;
+  const erroHistorico = dataMode === "real" ? realSavingsQuery.isError : weeklyItemsQuery.isError;
+  const recarregarHistorico = dataMode === "real" ? realSavingsQuery.refetch : weeklyItemsQuery.refetch;
+  const { data: observacoesSemana = [] } = useWeekNotes(dataMode === "real" ? undefined : importacaoAtual?.id);
 
   /** Itens do escopo ativo: todas as semanas ou apenas as marcadas no filtro. */
   const itensEscopo = useMemo(() => {
@@ -215,6 +280,14 @@ export function SavingsView({
 
     setExcluindoSemana(true);
     try {
+      if (dataMode === "real") {
+        const { error } = await (supabase as any).from("real_savings_imports").delete().eq("id", importacaoAtual.id);
+        if (error) throw error;
+        setSemanasSelecionadas([]);
+        await queryClient.invalidateQueries({ queryKey: ["real_savings"] });
+        toast.success(`${importacaoAtual.week_code} excluída`, { description: "A importação real foi removida." });
+        return;
+      }
       const { error: erroObservacoes } = await supabase
         .from("week_notes")
         .delete()
@@ -471,7 +544,7 @@ export function SavingsView({
           Importe uma planilha semanal para habilitar todos os indicadores executivos de Savings.
         </p>
         <div className="mt-6 flex justify-center">
-          <WeeklyImportButton />
+          {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton />}
         </div>
       </div>
     );
