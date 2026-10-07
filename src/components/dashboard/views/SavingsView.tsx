@@ -789,6 +789,7 @@ export function SavingsView({
           />
         </section>
 
+        {/* Comparativo operacional x reversão do setor de perdas */}
         {dataMode === "real" && <SavingsComparisonChart />}
 
         {/* 4. ÁREA GRANDE: DESCONTOS POR SEMANA */}
