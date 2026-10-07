@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
+import { RealSavingsView } from "@/components/dashboard/views/RealSavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
 import { ConsolidatedView } from "@/components/dashboard/views/ConsolidatedView";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 const dashboardSearchSchema = z.object({
-  view: z.enum(["savings", "mao-de-obra", "consolidado"]).optional().default("savings"),
+  view: z.enum(["savings", "savings-reais", "mao-de-obra", "consolidado"]).optional().default("savings"),
   bases: z.string().optional(),
   eficacia: z.number().optional(),
   labor: z.string().optional(),
@@ -90,7 +91,7 @@ function Dashboard() {
     } as any);
   }, [selecionadas, eficacia, view, laborPremises, navigate]);
 
-  const setView = (newView: "savings" | "mao-de-obra" | "consolidado") => {
+  const setView = (newView: "savings" | "savings-reais" | "mao-de-obra" | "consolidado") => {
     if (newView === "savings") {
       navigate({
         search: () => ({ view: "savings" }),
@@ -166,6 +167,17 @@ function Dashboard() {
             Savings Operacionais
           </button>
           <button
+            onClick={() => setView("savings-reais")}
+            className={cn(
+              "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
+              view === "savings-reais"
+                ? "border-secondary text-secondary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+            )}
+          >
+            Savings Reais
+          </button>
+          <button
             onClick={() => setView("mao-de-obra")}
             className={cn(
               "px-6 py-3 text-base font-bold border-b-2 transition-colors duration-200 whitespace-nowrap",
@@ -198,6 +210,7 @@ function Dashboard() {
               setEficacia={setEficacia}
             />
           )}
+          {view === "savings-reais" && <RealSavingsView />}
           {view === "mao-de-obra" && (
             <LaborView premises={laborPremises} setPremises={setLaborPremises} />
           )}
