@@ -40,6 +40,9 @@ function suggest(headers: string[]): Mapping {
     });
     if (found.length === 1) result[key] = found[0]!;
   });
+  if (!result.base && headers[0]) result.base = headers[0];
+  if (!result.charged && headers[7]) result.charged = headers[7];
+  if (!result.status && headers[9]) result.status = headers[9];
   return result;
 }
 function money(value: unknown): number | null {
