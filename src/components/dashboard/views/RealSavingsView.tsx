@@ -184,7 +184,7 @@ export function RealSavingsView() {
       setHeaders(selectedSheet.headers);
       const detected = suggest(selectedSheet.headers);
       setMapping(detected);
-      const missing = [!detected.charged && "Valor cobrado", !detected.reversed && "Valor revertido"].filter(Boolean).join(" e ");
+      const missing = [!detected.charged && "coluna R$", (!detected.reversed && !detected.status) && "Status final"].filter(Boolean).join(" e ");
       setMessage(missing
         ? `Tabela encontrada na aba "${selectedSheet.name}", linha ${selectedSheet.headerRow}. Selecione manualmente: ${missing}.`
         : `Modelo reconhecido: aba "${selectedSheet.name}", cabeçalho na linha ${selectedSheet.headerRow}.`);
