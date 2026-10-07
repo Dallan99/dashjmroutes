@@ -43,9 +43,9 @@ function ComparisonTooltip({ active, payload }: any) {
   );
 }
 
-export function SavingsComparisonChart() {
+export function SavingsComparisonChart({ selectedWeekKeys }: { selectedWeekKeys?: string[] }) {
   const { data = [], isLoading, isError } = useQuery({
-    queryKey: ["savings", "operational-vs-real"],
+    queryKey: ["savings", "operational-vs-real", selectedWeekKeys ?? "all"],
     queryFn: async (): Promise<Point[]> => {
       const db = supabase as any;
       const [{ data: opImports, error: opError }, { data: realImports, error: realError }] = await Promise.all([
@@ -92,11 +92,13 @@ export function SavingsComparisonChart() {
         current.real += realByImport.get(item.id) ?? 0;
         points.set(key, current);
       }
+      const selected = selectedWeekKeys?.length ? new Set(selectedWeekKeys) : null;
       return Array.from(points.values()).map((point) => ({
         ...point,
         saldo: Math.max(0, point.operacional - point.real),
         efetividade: point.operacional > 0 ? (point.real / point.operacional) * 100 : 0,
-      })).sort((a, b) => a.year - b.year || a.week - b.week);
+      })).filter((point) => !selected || selected.has(point.key))
+        .sort((a, b) => a.year - b.year || a.week - b.week);
     },
   });
 
