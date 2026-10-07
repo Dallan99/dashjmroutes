@@ -20,8 +20,8 @@ const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classifi
 function inferWeek(fileName: string) {
   const match = fileName.toUpperCase().match(/(?:^|[^A-Z0-9])W(?:EEK)?[\s_-]*(\d{1,2})(?:[^0-9]|$)/);
   const weekNumber = match ? Number(match[1]) : null;
-  const yearMatch = fileName.match(/(?:20)?(\d{2})(?!.*\d)/);
-  const year = yearMatch && Number(yearMatch[1]) >= 20 ? 2000 + Number(yearMatch[1]) : new Date().getFullYear();
+  const yearMatch = fileName.match(/\\b(20\\d{2})\\b/);
+  const year = yearMatch ? Number(yearMatch[1]) : new Date().getFullYear();
   return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year };
 }
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
