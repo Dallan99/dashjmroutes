@@ -735,7 +735,7 @@ export function SavingsView({
 
           {/* Botão Importar semana */}
           <div className="border-t border-zinc-800/80 pt-3">
-            <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />
+            {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />}
           </div>
           <button
             type="button"
