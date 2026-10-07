@@ -152,15 +152,17 @@ export function RealSavingsView() {
       const decision = normalize(decisionText);
       const isNotDiscounted = decision.includes("descont") && (decision.startsWith("nao") || decision.includes("naodescont"));
       const isDiscounted = decision.includes("descont") && !isNotDiscounted;
+      // O bruto nunca é definido pela análise: toda linha com valor em R$ permanece
+      // no universo. A análise apenas informa o que foi salvo/revertido.
       const reversed = mapping.reversed
-        ? money(row[mapping.reversed])
-        : charged !== null && (isNotDiscounted || isDiscounted)
-          ? (isNotDiscounted ? charged : 0)
-          : null;
+        ? (money(row[mapping.reversed]) ?? 0)
+        : charged !== null && isNotDiscounted
+          ? charged
+          : 0;
       return {
         line: index + 2, row, charged, reversed, resolvedBase, decisionText,
         real: reversed,
-        valid: charged !== null && reversed !== null,
+        valid: charged !== null,
       };
     });
   }, [rows, mapping]);
