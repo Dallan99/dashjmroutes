@@ -125,9 +125,16 @@ export function RealSavingsView() {
     })).filter((entry) => entry.rows.length);
     setFile({ name: selected.name, hash: await hashFile(buffer), ...weekFromName(selected.name) });
     setSheets(parsed);
-    if (parsed[0]) {
-      const hs = Array.from(new Set(parsed[0].rows.flatMap((row) => Object.keys(row)))).filter((h) => h && !h.startsWith("__EMPTY"));
-      setSheet(parsed[0].name); setRows(parsed[0].rows); setHeaders(hs); setMapping(suggest(hs));
+    const ranked = parsed.map((entry) => {
+      const hs = Array.from(new Set(entry.rows.flatMap((row) => Object.keys(row)))).filter((h) => h && !h.startsWith("__EMPTY"));
+      const detected = suggest(hs);
+      const score = (detected.charged ? 4 : 0) + (detected.status ? 4 : 0) + (detected.base ? 3 : 0) + (detected.date ? 1 : 0) + Math.min(entry.rows.length / 1000, 1);
+      return { entry, hs, detected, score };
+    }).sort((a, b) => b.score - a.score);
+    const best = ranked[0];
+    if (best) {
+      setSheet(best.entry.name); setRows(best.entry.rows); setHeaders(best.hs); setMapping(best.detected);
+      setMessage(`Aba selecionada automaticamente: ${best.entry.name}. ${best.entry.rows.length} linhas encontradas.`);
     }
   };
 
@@ -140,8 +147,8 @@ export function RealSavingsView() {
       const charged = money(row[mapping.charged]);
       const decisionText = mapping.status ? String(row[mapping.status] ?? "").trim() : "";
       const decision = normalize(decisionText);
-      const isNotDiscounted = decision === "naodescontar";
-      const isDiscounted = decision === "descontar";
+      const isNotDiscounted = decision.includes("descont") && (decision.startsWith("nao") || decision.includes("naodescont"));
+      const isDiscounted = decision.includes("descont") && !isNotDiscounted;
       const reversed = mapping.reversed
         ? money(row[mapping.reversed])
         : charged !== null && (isNotDiscounted || isDiscounted)
