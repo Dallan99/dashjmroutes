@@ -17,6 +17,13 @@ type Item = {
 type Import = { id: string; file_name: string; sheet_name: string | null; valid_rows: number; rejected_rows: number; imported_at: string };
 
 const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classification: "", status: "" };
+function inferWeek(fileName: string) {
+  const match = fileName.toUpperCase().match(/(?:^|[^A-Z0-9])W(?:EEK)?[\s_-]*(\d{1,2})(?:[^0-9]|$)/);
+  const weekNumber = match ? Number(match[1]) : null;
+  const yearMatch = fileName.match(/(?:20)?(\d{2})(?!.*\d)/);
+  const year = yearMatch && Number(yearMatch[1]) >= 20 ? 2000 + Number(yearMatch[1]) : new Date().getFullYear();
+  return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year };
+}
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const aliases: Record<keyof Mapping, string[]> = {
   charged: ["valorcobrado", "cobrado", "totalcobrado", "valordescontado", "descontoaplicado", "valordodesconto", "desconto", "debito", "valordebitado", "valorbruto", "amount", "valor"],
@@ -126,7 +133,7 @@ export function RealSavingsView() {
   const [sheets, setSheets] = useState<ParsedSheet[]>([]);
   const [sheet, setSheet] = useState("");
   const [mapping, setMapping] = useState<Mapping>(EMPTY);
-  const [file, setFile] = useState<{ name: string; hash: string } | null>(null);
+  const [file, setFile] = useState<{ name: string; hash: string; weekNumber: number | null; weekCode: string | null; year: number } | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [imports, setImports] = useState<Import[]>([]);
   const [query, setQuery] = useState("");
@@ -169,7 +176,7 @@ export function RealSavingsView() {
         return score(b) - score(a);
       });
       const selectedSheet = scored[0]!;
-      setFile({ name: selected.name, hash: await hashFile(buffer) });
+      setFile({ name: selected.name, hash: await hashFile(buffer), ...inferWeek(selected.name) });
       setSheets(parsed);
       setSheet(selectedSheet.name);
       setRows(selectedSheet.rows);
@@ -210,6 +217,7 @@ export function RealSavingsView() {
       if (duplicate) throw new Error("Este arquivo já possui uma importação concluída.");
       const { data: imported, error } = await db.from("real_savings_imports").insert({
         file_name: file.name, file_hash: file.hash, sheet_name: sheet, mapping,
+        week_code: file.weekCode, week_number: file.weekNumber, year: file.year,
         valid_rows: valid.length, rejected_rows: preview.length - valid.length, status: "processing",
       }).select("id").single();
       if (error) throw error;
@@ -265,7 +273,7 @@ export function RealSavingsView() {
     {message && <div className="rounded-lg border border-border bg-card p-3 text-sm font-semibold">{message}</div>}
 
     {file && <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-      <div className="flex items-center gap-2 font-bold"><FileSpreadsheet className="size-5" /> {file.name}</div>
+      <div className="flex flex-wrap items-center gap-2 font-bold"><FileSpreadsheet className="size-5" /> {file.name}<span className="rounded-full bg-secondary/15 px-2 py-1 text-xs text-secondary">{file.weekCode ? `${file.weekCode} · ${file.year}` : "Semana não identificada no nome"}</span></div>
       <div className="grid gap-3 md:grid-cols-3">
         <label className="text-sm font-semibold">Aba<select className="mt-1 w-full rounded-md border bg-background p-2" value={sheet} onChange={(e) => chooseSheet(e.target.value)}>{sheets.map((s) => <option key={s.name}>{s.name}</option>)}</select></label>
         {(["charged","reversed","date","base","classification","status"] as (keyof Mapping)[]).map((key) => <label key={key} className="text-sm font-semibold">{({charged:"Valor cobrado",reversed:"Valor revertido",date:"Data/período",base:"Base/unidade",classification:"Classificação/motivo",status:"Status"})[key]}<select className="mt-1 w-full rounded-md border bg-background p-2" value={mapping[key]} onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}><option value="">Não mapeado</option>{headers.map((header) => <option key={header}>{header}</option>)}</select></label>)}
