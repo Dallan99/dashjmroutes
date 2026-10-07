@@ -19,17 +19,20 @@ type Import = { id: string; file_name: string; sheet_name: string | null; valid_
 const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classification: "", status: "" };
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const aliases: Record<keyof Mapping, string[]> = {
-  charged: ["valorcobrado", "cobrado", "desconto", "valordesconto", "amount", "valor"],
+  charged: ["valorcobrado", "cobrado", "desconto", "valordesconto", "amount", "valor", "rs"],
   reversed: ["valorrevertido", "revertido", "reversao", "estorno", "recuperado"],
   date: ["data", "datacobranca", "competencia", "semana", "mes"],
-  base: ["base", "unidade", "site", "estacao", "facility"],
-  classification: ["classificacao", "motivo", "categoria", "descricao"],
-  status: ["status", "decisao", "situacao"],
+  base: ["base", "service", "servico", "unidade", "site", "estacao", "facility"],
+  classification: ["classificacao", "tratativaslast", "tratativa", "motivo", "categoria", "descricao"],
+  status: ["statusfinal", "status", "decisao", "situacao"],
 };
 function suggest(headers: string[]): Mapping {
   const result = { ...EMPTY };
   (Object.keys(result) as (keyof Mapping)[]).forEach((key) => {
-    const found = headers.filter((header) => aliases[key].includes(normalize(header)));
+    const found = headers.filter((header) => {
+      if (key === "charged" && header.trim().toUpperCase() === "R$") return true;
+      return aliases[key].includes(normalize(header));
+    });
     if (found.length === 1) result[key] = found[0]!;
   });
   return result;
@@ -123,23 +126,37 @@ export function RealSavingsView() {
     }
   };
 
-  const preview = useMemo(() => rows.map((row, index) => {
-    const charged = money(row[mapping.charged]);
-    const reversed = money(row[mapping.reversed]);
-    return {
-      line: index + 2, row, charged, reversed,
-      real: charged === null || reversed === null ? null : charged - reversed,
-      valid: charged !== null && reversed !== null,
-    };
-  }), [rows, mapping]);
+  const preview = useMemo(() => {
+    let lastBase = "";
+    return rows.map((row, index) => {
+      const rawBase = mapping.base ? String(row[mapping.base] ?? "").trim() : "";
+      if (rawBase && rawBase !== "0" && rawBase !== "-") lastBase = rawBase;
+      const resolvedBase = rawBase && rawBase !== "0" && rawBase !== "-" ? rawBase : lastBase || null;
+      const charged = money(row[mapping.charged]);
+      const decisionText = mapping.status ? String(row[mapping.status] ?? "").trim() : "";
+      const decision = normalize(decisionText);
+      const isNotDiscounted = decision === "naodescontar";
+      const isDiscounted = decision === "descontar";
+      const reversed = mapping.reversed
+        ? money(row[mapping.reversed])
+        : charged !== null && (isNotDiscounted || isDiscounted)
+          ? (isNotDiscounted ? charged : 0)
+          : null;
+      return {
+        line: index + 2, row, charged, reversed, resolvedBase, decisionText,
+        real: reversed,
+        valid: charged !== null && reversed !== null,
+      };
+    });
+  }, [rows, mapping]);
   const valid = preview.filter((entry) => entry.valid);
   const previewTotals = valid.reduce((acc, entry) => ({
     charged: acc.charged + (entry.charged ?? 0), reversed: acc.reversed + (entry.reversed ?? 0), real: acc.real + (entry.real ?? 0),
   }), { charged: 0, reversed: 0, real: 0 });
 
   const save = async () => {
-    if (!file || !mapping.charged || !mapping.reversed || !valid.length) {
-      setMessage("Mapeie Valor cobrado e Valor revertido antes de importar."); return;
+    if (!file || !mapping.charged || (!mapping.reversed && !mapping.status) || !valid.length) {
+      setMessage("Mapeie R$ como valor, SERVICE como base e Status final como status."); return;
     }
     setBusy(true); setMessage("");
     try {
@@ -155,9 +172,9 @@ export function RealSavingsView() {
         return {
           import_id: imported.id,
           reference_date: mapping.date ? dateValue(entry.row[mapping.date]) : null,
-          base: mapping.base ? String(entry.row[mapping.base] ?? "").trim() || null : null,
+          base: entry.resolvedBase,
           classification: mapping.classification ? String(entry.row[mapping.classification] ?? "").trim() || null : null,
-          status: mapping.status ? String(entry.row[mapping.status] ?? "").trim() || null : null,
+          status: entry.decisionText || null,
           charged_amount: entry.charged, reversed_amount: entry.reversed,
           extra_data: Object.fromEntries(Object.entries(entry.row).filter(([key]) => !mapped.has(key))),
         };
@@ -196,7 +213,7 @@ export function RealSavingsView() {
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-2xl font-extrabold">Savings Reais</h2><p className="text-sm text-muted-foreground">Cobrado − revertido = desconto real</p></div>
+      <div><h2 className="text-2xl font-extrabold">Savings Reais</h2><p className="text-sm text-muted-foreground">NÃO DESCONTAR = saving real</p></div>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground"><Upload className="size-4" /> Importar planilha<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={(e) => void read(e.target.files?.[0])} /></label>
     </div>
     {message && <div className="rounded-lg border border-border bg-card p-3 text-sm font-semibold">{message}</div>}
@@ -211,7 +228,7 @@ export function RealSavingsView() {
         <Summary label="Linhas válidas" value={String(valid.length)} />
         <Summary label="Rejeitadas" value={String(preview.length - valid.length)} />
         <Summary label="Total cobrado" value={brl(previewTotals.charged)} />
-        <Summary label="Desconto real" value={brl(previewTotals.real)} />
+        <Summary label="Saving real" value={brl(previewTotals.real)} />
       </div>
       <button disabled={busy} onClick={() => void save()} className="rounded-lg bg-secondary px-4 py-2 font-bold text-secondary-foreground disabled:opacity-50">{busy ? "Importando…" : "Confirmar importação"}</button>
     </section>}
@@ -219,7 +236,7 @@ export function RealSavingsView() {
     <div className="grid gap-4 md:grid-cols-4">
       <Summary label="Total cobrado" value={brl(totals.charged)} />
       <Summary label="Total revertido" value={brl(totals.reversed)} />
-      <Summary label="Desconto real" value={brl(totals.real)} />
+      <Summary label="Saving real" value={brl(totals.real)} />
       <Summary label="% revertido" value={totals.charged ? `${((totals.reversed / totals.charged) * 100).toFixed(1)}%` : "—"} />
     </div>
     <div className="grid gap-3 md:grid-cols-[1fr_220px]">
@@ -227,7 +244,7 @@ export function RealSavingsView() {
       <select className="rounded-lg border bg-card p-2" value={base} onChange={(e) => setBase(e.target.value)}><option value="">Todas as bases</option>{bases.map((value) => <option key={value}>{value}</option>)}</select>
     </div>
     <div className="h-72 rounded-xl border border-border bg-card p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={byBase}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip formatter={(value) => brl(Number(value))} /><Bar dataKey="value" fill="hsl(var(--secondary))" /></BarChart></ResponsiveContainer></div>
-    <div className="overflow-x-auto rounded-xl border border-border bg-card"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Data</th><th className="p-3">Base</th><th className="p-3">Classificação</th><th className="p-3">Status</th><th className="p-3 text-right">Cobrado</th><th className="p-3 text-right">Revertido</th><th className="p-3 text-right">Desconto real</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id} className="border-b last:border-0"><td className="p-3">{item.reference_date ?? "—"}</td><td className="p-3">{item.base ?? "—"}</td><td className="p-3">{item.classification ?? "—"}</td><td className="p-3">{item.status ?? "—"}</td><td className="p-3 text-right">{item.charged_amount === null ? "Pendente" : brl(item.charged_amount)}</td><td className="p-3 text-right">{item.reversed_amount === null ? "Pendente" : brl(item.reversed_amount)}</td><td className={`p-3 text-right font-bold ${(item.real_discount ?? 0) < 0 ? "text-destructive" : ""}`}>{item.real_discount === null ? "Pendente" : brl(item.real_discount)}</td></tr>)}</tbody></table>{!filtered.length && <p className="p-8 text-center text-muted-foreground">Nenhum saving real importado.</p>}</div>
+    <div className="overflow-x-auto rounded-xl border border-border bg-card"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Data</th><th className="p-3">Base</th><th className="p-3">Classificação</th><th className="p-3">Status</th><th className="p-3 text-right">Cobrado</th><th className="p-3 text-right">Revertido</th><th className="p-3 text-right">Saving real</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id} className="border-b last:border-0"><td className="p-3">{item.reference_date ?? "—"}</td><td className="p-3">{item.base ?? "—"}</td><td className="p-3">{item.classification ?? "—"}</td><td className="p-3">{item.status ?? "—"}</td><td className="p-3 text-right">{item.charged_amount === null ? "Pendente" : brl(item.charged_amount)}</td><td className="p-3 text-right">{item.reversed_amount === null ? "Pendente" : brl(item.reversed_amount)}</td><td className={`p-3 text-right font-bold ${(item.real_discount ?? 0) < 0 ? "text-destructive" : ""}`}>{item.real_discount === null ? "Pendente" : brl(item.real_discount)}</td></tr>)}</tbody></table>{!filtered.length && <p className="p-8 text-center text-muted-foreground">Nenhum saving real importado.</p>}</div>
     <section className="rounded-xl border border-border bg-card p-4"><h3 className="mb-3 font-bold">Histórico de importações</h3><div className="space-y-2">{imports.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="font-semibold">{entry.file_name}</p><p className="text-xs text-muted-foreground">{entry.sheet_name ?? "Aba não informada"} · {entry.valid_rows} válidas · {entry.rejected_rows} rejeitadas · {new Date(entry.imported_at).toLocaleString("pt-BR")}</p></div><button aria-label="Excluir importação" onClick={() => void removeImport(entry.id)} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="size-4" /></button></div>)}</div></section>
   </div>;
 }
