@@ -796,7 +796,7 @@ export function SavingsView({
           />
         </section>
 
-        {/* Comparativo operacional x reversão do setor de perdas */}
+        {/* Comparativo filtrado: operacional x reversão do setor de perdas */}
         {dataMode === "real" && (
           <SavingsComparisonChart
             selectedWeekKeys={todasSemanas ? undefined : importacoes
