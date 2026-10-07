@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
 import { RealSavingsImportButton } from "@/components/dashboard/views/RealSavingsView";
+import { SavingsComparisonChart } from "@/components/dashboard/views/SavingsComparisonChart";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -787,6 +788,8 @@ export function SavingsView({
             onClick={() => setModalDetalhe("semanas")}
           />
         </section>
+
+        {dataMode === "real" && <SavingsComparisonChart />}
 
         {/* 4. ÁREA GRANDE: DESCONTOS POR SEMANA */}
         <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
