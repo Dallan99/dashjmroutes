@@ -177,7 +177,7 @@ export function RealSavingsView() {
         const mapped = new Set(Object.values(mapping).filter(Boolean));
         return {
           import_id: imported.id,
-          reference_date: mapping.date ? dateValue(entry.row[mapping.date]) : null,
+          reference_date: mapping.date && !["semana", "week"].includes(normalize(mapping.date)) ? dateValue(entry.row[mapping.date]) : null,
           base: entry.resolvedBase,
           classification: mapping.classification ? String(entry.row[mapping.classification] ?? "").trim() || null : null,
           status: entry.decisionText || null,
