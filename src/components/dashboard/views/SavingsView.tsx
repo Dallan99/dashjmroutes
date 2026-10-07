@@ -358,6 +358,7 @@ export function SavingsView({
     });
   }, [basesSelecionadas, tipoSelecionado, itensEscopo]);
 
+  // O histórico e o eixo semanal respeitam exatamente as semanas marcadas no filtro.
   const itensHistoricoFiltrados = useMemo(() => {
     const idsSelecionados = new Set(semanasSelecionadas);
     return itensHistorico.filter((item) => {
