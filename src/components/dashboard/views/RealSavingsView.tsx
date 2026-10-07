@@ -28,10 +28,10 @@ const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u0
 const aliases: Record<keyof Mapping, string[]> = {
   charged: ["valorcobrado", "cobrado", "totalcobrado", "valordescontado", "descontoaplicado", "valordodesconto", "desconto", "debito", "valordebitado", "valorbruto", "amount", "valor"],
   reversed: ["valorrevertido", "revertido", "totalrevertido", "valorrecuperado", "recuperado", "reversao", "valor_reversao", "estorno", "valorestornado", "improcedente"],
-  date: ["data", "datacobranca", "datafechamento", "datadesconto", "competencia", "periodo", "semana", "week", "mes", "month"],
-  base: ["base", "unidade", "operacao", "xpt", "site", "estacao", "facility", "servicecenter", "centrodeservico"],
-  classification: ["classificacao", "motivo", "categoria", "descricao", "tipodesconto", "raiz", "causa"],
-  status: ["status", "decisao", "situacao", "resultado", "tratativa", "parecer"],
+  date: ["data", "datacobranca", "datafechamento", "datadesconto", "datadoinsucesso", "competencia", "periodo", "semana", "week", "mes", "month"],
+  base: ["base", "service", "servico", "unidade", "operacao", "xpt", "site", "estacao", "facility", "servicecenter", "centrodeservico"],
+  classification: ["classificacao", "tratativaslast", "tratativa", "motivo", "categoria", "descricao", "tipodesconto", "raiz", "causa"],
+  status: ["statusfinal", "status", "decisao", "situacao", "resultado", "parecer"],
 };
 function suggest(headers: string[]): Mapping {
   const result = { ...EMPTY };
@@ -40,6 +40,7 @@ function suggest(headers: string[]): Mapping {
     const ranked = normalized
       .map(({ header, key }) => {
         const score = aliases[field].reduce((best, alias) => {
+          if (field === "charged" && (/^\\s*r\\$?\\s*$/i.test(header) || header.trim() === "R$")) return Math.max(best, 110);
           if (key === alias) return Math.max(best, 100);
           if (key.startsWith(alias) || key.endsWith(alias)) return Math.max(best, 80);
           if (key.includes(alias) || alias.includes(key)) return Math.max(best, key.length >= 4 ? 60 : 0);
@@ -193,23 +194,38 @@ export function RealSavingsView() {
     }
   };
 
-  const preview = useMemo(() => rows.map((row, index) => {
-    const charged = money(row[mapping.charged]);
-    const reversed = money(row[mapping.reversed]);
-    return {
-      line: index + 2, row, charged, reversed,
-      real: charged === null || reversed === null ? null : charged - reversed,
-      valid: charged !== null && reversed !== null,
-    };
-  }), [rows, mapping]);
+  const preview = useMemo(() => {
+    let lastBase = "";
+    return rows.map((row, index) => {
+      const rawBase = mapping.base ? String(row[mapping.base] ?? "").trim() : "";
+      if (rawBase && rawBase !== "0" && rawBase !== "-") lastBase = rawBase;
+      const resolvedBase = rawBase && rawBase !== "0" && rawBase !== "-" ? rawBase : lastBase || null;
+      const charged = money(row[mapping.charged]);
+      const decisionText = mapping.status ? String(row[mapping.status] ?? "").trim() : "";
+      const decision = normalize(decisionText);
+      const isDiscount = decision === "descontar" || (decision.includes("descontar") && !decision.includes("nao"));
+      const isReversed = decision.includes("naodescontar");
+      const explicitReversed = mapping.reversed ? money(row[mapping.reversed]) : null;
+      const reversed = mapping.reversed
+        ? explicitReversed
+        : charged === null || (!isDiscount && !isReversed)
+          ? null
+          : isReversed ? charged : 0;
+      return {
+        line: index + 2, row, charged, reversed, resolvedBase, decisionText,
+        real: charged === null || reversed === null ? null : charged - reversed,
+        valid: charged !== null && reversed !== null,
+      };
+    });
+  }, [rows, mapping]);
   const valid = preview.filter((entry) => entry.valid);
   const previewTotals = valid.reduce((acc, entry) => ({
     charged: acc.charged + (entry.charged ?? 0), reversed: acc.reversed + (entry.reversed ?? 0), real: acc.real + (entry.real ?? 0),
   }), { charged: 0, reversed: 0, real: 0 });
 
   const save = async () => {
-    if (!file || !mapping.charged || !mapping.reversed || !valid.length) {
-      setMessage("Mapeie Valor cobrado e Valor revertido antes de importar."); return;
+    if (!file || !mapping.charged || (!mapping.reversed && !mapping.status) || !valid.length) {
+      setMessage("Mapeie a coluna R$ e a coluna Status final (ou uma coluna explícita de valor revertido)."); return;
     }
     setBusy(true); setMessage("");
     try {
@@ -226,9 +242,9 @@ export function RealSavingsView() {
         return {
           import_id: imported.id,
           reference_date: mapping.date ? dateValue(entry.row[mapping.date]) : null,
-          base: mapping.base ? String(entry.row[mapping.base] ?? "").trim() || null : null,
+          base: entry.resolvedBase,
           classification: mapping.classification ? String(entry.row[mapping.classification] ?? "").trim() || null : null,
-          status: mapping.status ? String(entry.row[mapping.status] ?? "").trim() || null : null,
+          status: entry.decisionText || null,
           charged_amount: entry.charged, reversed_amount: entry.reversed,
           extra_data: Object.fromEntries(Object.entries(entry.row).filter(([key]) => !mapped.has(key))),
         };
@@ -276,7 +292,7 @@ export function RealSavingsView() {
       <div className="flex flex-wrap items-center gap-2 font-bold"><FileSpreadsheet className="size-5" /> {file.name}<span className="rounded-full bg-secondary/15 px-2 py-1 text-xs text-secondary">{file.weekCode ? `${file.weekCode} · ${file.year}` : "Semana não identificada no nome"}</span></div>
       <div className="grid gap-3 md:grid-cols-3">
         <label className="text-sm font-semibold">Aba<select className="mt-1 w-full rounded-md border bg-background p-2" value={sheet} onChange={(e) => chooseSheet(e.target.value)}>{sheets.map((s) => <option key={s.name}>{s.name}</option>)}</select></label>
-        {(["charged","reversed","date","base","classification","status"] as (keyof Mapping)[]).map((key) => <label key={key} className="text-sm font-semibold">{({charged:"Valor cobrado",reversed:"Valor revertido",date:"Data/período",base:"Base/unidade",classification:"Classificação/motivo",status:"Status"})[key]}<select className="mt-1 w-full rounded-md border bg-background p-2" value={mapping[key]} onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}><option value="">Não mapeado</option>{headers.map((header) => <option key={header}>{header}</option>)}</select></label>)}
+        {(["charged","reversed","date","base","classification","status"] as (keyof Mapping)[]).map((key) => <label key={key} className="text-sm font-semibold">{({charged:"Valor (coluna R$)",reversed:"Valor revertido (opcional)",date:"Data/período",base:"Base (SERVICE)",classification:"Tratativa/motivo",status:"Status final"})[key]}<select className="mt-1 w-full rounded-md border bg-background p-2" value={mapping[key]} onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}><option value="">Não mapeado</option>{headers.map((header) => <option key={header}>{header}</option>)}</select></label>)}
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <Summary label="Linhas válidas" value={String(valid.length)} />
