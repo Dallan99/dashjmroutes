@@ -19,20 +19,64 @@ type Import = { id: string; file_name: string; sheet_name: string | null; valid_
 const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classification: "", status: "" };
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const aliases: Record<keyof Mapping, string[]> = {
-  charged: ["valorcobrado", "cobrado", "desconto", "valordesconto", "amount", "valor"],
-  reversed: ["valorrevertido", "revertido", "reversao", "estorno", "recuperado"],
-  date: ["data", "datacobranca", "competencia", "semana", "mes"],
-  base: ["base", "unidade", "site", "estacao", "facility"],
-  classification: ["classificacao", "motivo", "categoria", "descricao"],
-  status: ["status", "decisao", "situacao"],
+  charged: ["valorcobrado", "cobrado", "totalcobrado", "valordescontado", "descontoaplicado", "valordodesconto", "desconto", "debito", "valordebitado", "valorbruto", "amount", "valor"],
+  reversed: ["valorrevertido", "revertido", "totalrevertido", "valorrecuperado", "recuperado", "reversao", "valor_reversao", "estorno", "valorestornado", "improcedente"],
+  date: ["data", "datacobranca", "datafechamento", "datadesconto", "competencia", "periodo", "semana", "week", "mes", "month"],
+  base: ["base", "unidade", "operacao", "xpt", "site", "estacao", "facility", "servicecenter", "centrodeservico"],
+  classification: ["classificacao", "motivo", "categoria", "descricao", "tipodesconto", "raiz", "causa"],
+  status: ["status", "decisao", "situacao", "resultado", "tratativa", "parecer"],
 };
 function suggest(headers: string[]): Mapping {
   const result = { ...EMPTY };
-  (Object.keys(result) as (keyof Mapping)[]).forEach((key) => {
-    const found = headers.filter((header) => aliases[key].includes(normalize(header)));
-    if (found.length === 1) result[key] = found[0]!;
+  const normalized = headers.map((header) => ({ header, key: normalize(header) }));
+  (Object.keys(result) as (keyof Mapping)[]).forEach((field) => {
+    const ranked = normalized
+      .map(({ header, key }) => {
+        const score = aliases[field].reduce((best, alias) => {
+          if (key === alias) return Math.max(best, 100);
+          if (key.startsWith(alias) || key.endsWith(alias)) return Math.max(best, 80);
+          if (key.includes(alias) || alias.includes(key)) return Math.max(best, key.length >= 4 ? 60 : 0);
+          return best;
+        }, 0);
+        return { header, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (ranked[0] && (ranked.length === 1 || ranked[0].score > ranked[1].score)) result[field] = ranked[0].header;
   });
+  if (result.charged && result.charged === result.reversed) result.reversed = "";
   return result;
+}
+
+type ParsedSheet = { name: string; rows: Row[]; headers: string[]; headerRow: number };
+
+function parseWorksheet(name: string, worksheet: XLSX.WorkSheet): ParsedSheet | null {
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: null, raw: true });
+  if (!matrix.length) return null;
+  const keywords = Object.values(aliases).flat();
+  let bestIndex = 0;
+  let bestScore = -1;
+  matrix.slice(0, 60).forEach((line, index) => {
+    const values = (line ?? []).map((value) => String(value ?? "").trim()).filter(Boolean);
+    if (values.length < 2) return;
+    const normalizedValues = values.map(normalize);
+    const keywordHits = normalizedValues.filter((value) => keywords.some((key) => value === key || value.includes(key) || key.includes(value))).length;
+    const numericCells = values.filter((value) => /^[-+]?\\d[\\d.,]*$/.test(value)).length;
+    const score = keywordHits * 25 + values.length * 2 - numericCells * 3;
+    if (score > bestScore) { bestScore = score; bestIndex = index; }
+  });
+  const rawHeaders = matrix[bestIndex] ?? [];
+  const used = new Map<string, number>();
+  const headers = rawHeaders.map((value, index) => {
+    const base = String(value ?? "").trim() || `Coluna ${index + 1}`;
+    const count = (used.get(base) ?? 0) + 1;
+    used.set(base, count);
+    return count === 1 ? base : `${base} (${count})`;
+  });
+  const rows = matrix.slice(bestIndex + 1)
+    .map((line) => Object.fromEntries(headers.map((header, index) => [header, line?.[index] ?? null])))
+    .filter((row) => Object.values(row).some((value) => value !== null && String(value).trim() !== ""));
+  return rows.length ? { name, rows, headers, headerRow: bestIndex + 1 } : null;
 }
 function money(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -79,7 +123,7 @@ export function RealSavingsView() {
   const queryClient = useQueryClient();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
-  const [sheets, setSheets] = useState<{ name: string; rows: Row[] }[]>([]);
+  const [sheets, setSheets] = useState<ParsedSheet[]>([]);
   const [sheet, setSheet] = useState("");
   const [mapping, setMapping] = useState<Mapping>(EMPTY);
   const [file, setFile] = useState<{ name: string; hash: string } | null>(null);
@@ -104,22 +148,41 @@ export function RealSavingsView() {
   const chooseSheet = (name: string) => {
     const selected = sheets.find((entry) => entry.name === name);
     if (!selected) return;
-    const hs = Array.from(new Set(selected.rows.flatMap((row) => Object.keys(row)))).filter((h) => h && !h.startsWith("__EMPTY"));
-    setSheet(name); setRows(selected.rows); setHeaders(hs); setMapping(suggest(hs));
+    setSheet(name);
+    setRows(selected.rows);
+    setHeaders(selected.headers);
+    setMapping(suggest(selected.headers));
+    setMessage(`Cabeçalho encontrado na linha ${selected.headerRow}. Confira o mapeamento antes de importar.`);
   };
   const read = async (selected?: File) => {
     if (!selected) return;
     setMessage("");
-    const buffer = await selected.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-    const parsed = workbook.SheetNames.map((name) => ({
-      name, rows: XLSX.utils.sheet_to_json<Row>(workbook.Sheets[name]!, { defval: null, raw: true }),
-    })).filter((entry) => entry.rows.length);
-    setFile({ name: selected.name, hash: await hashFile(buffer) });
-    setSheets(parsed);
-    if (parsed[0]) {
-      const hs = Array.from(new Set(parsed[0].rows.flatMap((row) => Object.keys(row)))).filter((h) => h && !h.startsWith("__EMPTY"));
-      setSheet(parsed[0].name); setRows(parsed[0].rows); setHeaders(hs); setMapping(suggest(hs));
+    try {
+      const buffer = await selected.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const parsed = workbook.SheetNames
+        .map((name) => parseWorksheet(name, workbook.Sheets[name]!))
+        .filter((entry): entry is ParsedSheet => Boolean(entry));
+      if (!parsed.length) throw new Error("Nenhuma tabela com dados foi encontrada no arquivo.");
+      const scored = [...parsed].sort((a, b) => {
+        const score = (sheet: ParsedSheet) => Object.values(suggest(sheet.headers)).filter(Boolean).length * 1000 + sheet.rows.length;
+        return score(b) - score(a);
+      });
+      const selectedSheet = scored[0]!;
+      setFile({ name: selected.name, hash: await hashFile(buffer) });
+      setSheets(parsed);
+      setSheet(selectedSheet.name);
+      setRows(selectedSheet.rows);
+      setHeaders(selectedSheet.headers);
+      const detected = suggest(selectedSheet.headers);
+      setMapping(detected);
+      const missing = [!detected.charged && "Valor cobrado", !detected.reversed && "Valor revertido"].filter(Boolean).join(" e ");
+      setMessage(missing
+        ? `Tabela encontrada na aba "${selectedSheet.name}", linha ${selectedSheet.headerRow}. Selecione manualmente: ${missing}.`
+        : `Modelo reconhecido: aba "${selectedSheet.name}", cabeçalho na linha ${selectedSheet.headerRow}.`);
+    } catch (error) {
+      setFile(null); setSheets([]); setRows([]); setHeaders([]);
+      setMessage(error instanceof Error ? error.message : "Não foi possível ler a planilha.");
     }
   };
 
