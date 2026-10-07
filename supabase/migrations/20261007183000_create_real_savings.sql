@@ -30,8 +30,8 @@ create table public.real_savings_items (
   reversed_amount numeric(16,2),
   real_discount numeric(16,2) generated always as (
     case
-      when charged_amount is null or reversed_amount is null then null
-      else charged_amount - reversed_amount
+      when reversed_amount is null then null
+      else reversed_amount
     end
   ) stored,
   extra_data jsonb not null default '{}'::jsonb,
