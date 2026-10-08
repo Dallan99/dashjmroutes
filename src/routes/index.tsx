@@ -180,6 +180,7 @@ function Dashboard() {
         <div className="transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
           {view === "savings" && (
             <SavingsView
+              key="savings-operacionais"
               selecionadas={selecionadas}
               setSelecionadas={setSelecionadas}
               eficacia={eficacia}
@@ -188,6 +189,7 @@ function Dashboard() {
           )}
           {view === "savings-reais" && (
             <SavingsView
+              key="savings-reais"
               dataMode="real"
               selecionadas={selecionadas}
               setSelecionadas={setSelecionadas}
