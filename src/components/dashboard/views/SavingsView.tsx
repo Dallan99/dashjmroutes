@@ -78,6 +78,35 @@ import {
 import { cn } from "@/lib/utils";
 
 const TODAS_AS_SEMANAS = "__todas_as_semanas__";
+const SHARED_FILTERS_KEY = "jmroutes:savings:shared-filters";
+
+type SharedSavingsFilters = {
+  weeks: string[];
+  bases: string[];
+  type: "TODOS" | "XPT" | "SERVICES";
+  year: number | null;
+};
+
+function readSharedFilters(): SharedSavingsFilters {
+  if (typeof window === "undefined") return { weeks: [], bases: [], type: "TODOS", year: null };
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SHARED_FILTERS_KEY) ?? "{}");
+    return {
+      weeks: Array.isArray(value.weeks) ? value.weeks : [],
+      bases: Array.isArray(value.bases) ? value.bases : [],
+      type: ["TODOS", "XPT", "SERVICES"].includes(value.type) ? value.type : "TODOS",
+      year: Number.isFinite(Number(value.year)) ? Number(value.year) : null,
+    };
+  } catch {
+    return { weeks: [], bases: [], type: "TODOS", year: null };
+  }
+}
+
+function writeSharedFilters(patch: Partial<SharedSavingsFilters>) {
+  if (typeof window === "undefined") return;
+  const current = readSharedFilters();
+  window.localStorage.setItem(SHARED_FILTERS_KEY, JSON.stringify({ ...current, ...patch }));
+}
 
 /** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
 const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
@@ -273,7 +302,7 @@ export function SavingsView({
             driver: null,
             description: "Perda efetiva após reversão",
             event_date: null,
-            amount: Math.max(0, gross - recovered),
+            amount: gross,
             operational_status: "calculado",
             classification: "Operacional menos NÃO DESCONTAR",
             decision: null,
@@ -290,15 +319,44 @@ export function SavingsView({
   const carregandoImportacoes = dataMode === "real" ? realSavingsQuery.isLoading : weeklyImportsQuery.isLoading;
   const erroImportacoes = dataMode === "real" ? realSavingsQuery.isError : weeklyImportsQuery.isError;
   const recarregarImportacoes = dataMode === "real" ? realSavingsQuery.refetch : weeklyImportsQuery.refetch;
+  const initialSharedFilters = useMemo(() => readSharedFilters(), []);
   const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
-  const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>([]);
-  const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">("TODOS");
-  const [anoRanking, setAnoRanking] = useState<number | null>(null);
+  const [filtrosRestaurados, setFiltrosRestaurados] = useState(false);
+  const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>(initialSharedFilters.bases);
+  const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">(initialSharedFilters.type);
+  const [anoRanking, setAnoRanking] = useState<number | null>(initialSharedFilters.year);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
   const todasSemanas = semanasSelecionadas.length === 0;
+
+  // Restaura os mesmos filtros sem depender dos IDs, que são diferentes
+  // entre as importações operacionais e reais.
+  useEffect(() => {
+    if (filtrosRestaurados || importacoes.length === 0) return;
+    const wanted = new Set(initialSharedFilters.weeks);
+    setSemanasSelecionadas(
+      importacoes
+        .filter((item) => wanted.has(`${item.year}-${String(item.week_number).padStart(2, "0")}`))
+        .map((item) => item.id),
+    );
+    setFiltrosRestaurados(true);
+  }, [filtrosRestaurados, importacoes, initialSharedFilters.weeks]);
+
+  useEffect(() => {
+    if (!filtrosRestaurados) return;
+    const ids = new Set(semanasSelecionadas);
+    writeSharedFilters({
+      weeks: importacoes
+        .filter((item) => ids.has(item.id))
+        .map((item) => `${item.year}-${String(item.week_number).padStart(2, "0")}`),
+    });
+  }, [filtrosRestaurados, importacoes, semanasSelecionadas]);
+
+  useEffect(() => {
+    writeSharedFilters({ bases: basesSelecionadas, type: tipoSelecionado, year: anoRanking });
+  }, [anoRanking, basesSelecionadas, tipoSelecionado]);
 
   useEffect(() => {
     if (importacoes.length === 0 || semanasSelecionadas.length === 0) return;
