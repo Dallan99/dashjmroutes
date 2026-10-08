@@ -4,6 +4,7 @@ import { Activity, ShieldCheck, TrendingDown, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, brlCurto } from "@/components/dashboard/data";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { resolverBaseOperacao } from "@/components/history/weekly-api";
 
 type Point = {
   key: string;
@@ -43,9 +44,24 @@ function ComparisonTooltip({ active, payload }: any) {
   );
 }
 
-export function SavingsComparisonChart({ selectedWeekKeys }: { selectedWeekKeys?: string[] }) {
+function baseCode(base: string | null | undefined, service?: string | null) {
+  const value = resolverBaseOperacao(base, service)?.trim().toUpperCase() ?? "";
+  const match = value.match(/\b([A-Z]{2,4})\s*-?\s*(\d{1,3})\b/);
+  return match ? `${match[1]}${match[2]}` : value;
+}
+const XPT_CODES = new Set(["ESP15", "ESP16", "ESP17", "ESP18"]);
+
+export function SavingsComparisonChart({
+  selectedWeekKeys,
+  selectedBaseCodes = [],
+  selectedType = "TODOS",
+}: {
+  selectedWeekKeys?: string[];
+  selectedBaseCodes?: string[];
+  selectedType?: "TODOS" | "XPT" | "SERVICES";
+}) {
   const { data = [], isLoading, isError } = useQuery({
-    queryKey: ["savings", "operational-vs-real", selectedWeekKeys ?? "all"],
+    queryKey: ["savings", "operational-vs-real", selectedWeekKeys ?? "all", selectedBaseCodes, selectedType],
     queryFn: async (): Promise<Point[]> => {
       const db = supabase as any;
       const [{ data: opImports, error: opError }, { data: realImports, error: realError }] = await Promise.all([
@@ -58,19 +74,27 @@ export function SavingsComparisonChart({ selectedWeekKeys }: { selectedWeekKeys?
       const opIds = (opImports ?? []).map((item: any) => item.id);
       const realIds = (realImports ?? []).map((item: any) => item.id);
       const [opItems, realItems] = await Promise.all([
-        opIds.length ? allRows((from, to) => db.from("weekly_items").select("import_id, amount").in("import_id", opIds).range(from, to)) : [],
-        realIds.length ? allRows((from, to) => db.from("real_savings_items").select("import_id, real_discount").in("import_id", realIds).range(from, to)) : [],
+        opIds.length ? allRows((from, to) => db.from("weekly_items").select("import_id, base, service, amount").in("import_id", opIds).range(from, to)) : [],
+        realIds.length ? allRows((from, to) => db.from("real_savings_items").select("import_id, base, real_discount, reversed_amount").in("import_id", realIds).range(from, to)) : [],
       ]);
 
+      const selectedBases = new Set(selectedBaseCodes);
+      const matchesFilter = (code: string) => {
+        const matchesBase = selectedBases.size === 0 || selectedBases.has(code);
+        const type = XPT_CODES.has(code) ? "XPT" : "SERVICES";
+        return matchesBase && (selectedType === "TODOS" || selectedType === type);
+      };
       const opByImport = new Map<string, number>();
       for (const item of opItems) {
+        const code = baseCode(item.base, item.service);
         const value = Number(item.amount);
-        if (Number.isFinite(value)) opByImport.set(item.import_id, (opByImport.get(item.import_id) ?? 0) + value);
+        if (matchesFilter(code) && Number.isFinite(value)) opByImport.set(item.import_id, (opByImport.get(item.import_id) ?? 0) + value);
       }
       const realByImport = new Map<string, number>();
       for (const item of realItems) {
-        const value = Number(item.real_discount);
-        if (Number.isFinite(value)) realByImport.set(item.import_id, (realByImport.get(item.import_id) ?? 0) + value);
+        const code = baseCode(item.base);
+        const value = Number(item.reversed_amount ?? item.real_discount ?? 0);
+        if (matchesFilter(code) && Number.isFinite(value)) realByImport.set(item.import_id, (realByImport.get(item.import_id) ?? 0) + value);
       }
 
       const points = new Map<string, Point>();
