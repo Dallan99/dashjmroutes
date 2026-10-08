@@ -177,6 +177,22 @@ export function RealSavingsView() {
     }
     setBusy(true); setMessage("");
     try {
+      if (!file.weekNumber || !file.weekCode) {
+        throw new Error("Não foi possível identificar a semana W no nome do arquivo.");
+      }
+      const { data: operationalWeek, error: operationalWeekError } = await db
+        .from("weekly_imports")
+        .select("id")
+        .eq("year", file.year)
+        .eq("week_number", file.weekNumber)
+        .eq("status", "completed")
+        .eq("is_current", true)
+        .limit(1)
+        .maybeSingle();
+      if (operationalWeekError) throw operationalWeekError;
+      if (!operationalWeek) {
+        throw new Error(`Importe primeiro a ${file.weekCode} (${file.year}) em Savings Operacionais. O bruto real sempre vem da semana operacional correspondente.`);
+      }
       const { data: duplicate } = await db.from("real_savings_imports").select("id").eq("file_hash", file.hash).eq("status", "completed").maybeSingle();
       if (duplicate) throw new Error("Este arquivo já possui uma importação concluída.");
       const { data: imported, error } = await db.from("real_savings_imports").insert({
@@ -231,7 +247,7 @@ export function RealSavingsView() {
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-2xl font-extrabold">Savings Reais</h2><p className="text-sm text-muted-foreground">NÃO DESCONTAR = saving real</p></div>
+      <div><h2 className="text-2xl font-extrabold">Savings Reais</h2><p className="text-sm text-muted-foreground">Bruto da semana operacional − NÃO DESCONTAR = perda real</p></div>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground"><Upload className="size-4" /> Importar planilha<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={(e) => void read(e.target.files?.[0])} /></label>
     </div>
     {message && <div className="rounded-lg border border-border bg-card p-3 text-sm font-semibold">{message}</div>}
