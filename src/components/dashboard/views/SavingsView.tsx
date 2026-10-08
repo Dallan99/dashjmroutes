@@ -859,6 +859,8 @@ export function SavingsView({
             selectedWeekKeys={todasSemanas ? undefined : importacoes
               .filter((item) => semanasSelecionadas.includes(item.id))
               .map((item) => `${item.year}-${String(item.week_number).padStart(2, "0")}`)}
+            selectedBaseCodes={basesSelecionadas}
+            selectedType={tipoSelecionado}
           />
         )}
 
