@@ -78,19 +78,29 @@ import {
 import { cn } from "@/lib/utils";
 
 const TODAS_AS_SEMANAS = "__todas_as_semanas__";
-const SHARED_FILTERS_KEY = "jmroutes:savings:shared-filters";
+const LEGACY_SHARED_FILTERS_KEY = "jmroutes:savings:shared-filters";
+const FILTERS_KEY_PREFIX = "jmroutes:savings:filters";
 
-type SharedSavingsFilters = {
+type SavingsFilters = {
   weeks: string[];
   bases: string[];
   type: "TODOS" | "XPT" | "SERVICES";
   year: number | null;
 };
 
-function readSharedFilters(): SharedSavingsFilters {
+function filtersKey(scope: "operational" | "real") {
+  return `${FILTERS_KEY_PREFIX}:${scope}`;
+}
+
+function readSavingsFilters(scope: "operational" | "real"): SavingsFilters {
   if (typeof window === "undefined") return { weeks: [], bases: [], type: "TODOS", year: null };
   try {
-    const value = JSON.parse(window.localStorage.getItem(SHARED_FILTERS_KEY) ?? "{}");
+    // O legado é usado somente como valor inicial; depois cada página mantém
+    // sua própria seleção de forma independente.
+    const raw = window.localStorage.getItem(filtersKey(scope))
+      ?? window.localStorage.getItem(LEGACY_SHARED_FILTERS_KEY)
+      ?? "{}";
+    const value = JSON.parse(raw);
     return {
       weeks: Array.isArray(value.weeks) ? value.weeks : [],
       bases: Array.isArray(value.bases) ? value.bases : [],
@@ -102,10 +112,10 @@ function readSharedFilters(): SharedSavingsFilters {
   }
 }
 
-function writeSharedFilters(patch: Partial<SharedSavingsFilters>) {
+function writeSavingsFilters(scope: "operational" | "real", patch: Partial<SavingsFilters>) {
   if (typeof window === "undefined") return;
-  const current = readSharedFilters();
-  window.localStorage.setItem(SHARED_FILTERS_KEY, JSON.stringify({ ...current, ...patch }));
+  const current = readSavingsFilters(scope);
+  window.localStorage.setItem(filtersKey(scope), JSON.stringify({ ...current, ...patch }));
 }
 
 /** Somente estas quatro bases são XPT. Todo o restante é SERVICES. */
@@ -319,7 +329,7 @@ export function SavingsView({
   const carregandoImportacoes = dataMode === "real" ? realSavingsQuery.isLoading : weeklyImportsQuery.isLoading;
   const erroImportacoes = dataMode === "real" ? realSavingsQuery.isError : weeklyImportsQuery.isError;
   const recarregarImportacoes = dataMode === "real" ? realSavingsQuery.refetch : weeklyImportsQuery.refetch;
-  const initialSharedFilters = useMemo(() => readSharedFilters(), []);
+  const initialSharedFilters = useMemo(() => readSavingsFilters(dataMode), [dataMode]);
   const [semanasSelecionadas, setSemanasSelecionadas] = useState<string[]>([]);
   const [filtrosRestaurados, setFiltrosRestaurados] = useState(false);
   const [basesSelecionadas, setBasesSelecionadas] = useState<string[]>(initialSharedFilters.bases);
@@ -347,16 +357,16 @@ export function SavingsView({
   useEffect(() => {
     if (!filtrosRestaurados) return;
     const ids = new Set(semanasSelecionadas);
-    writeSharedFilters({
+    writeSavingsFilters(dataMode, {
       weeks: importacoes
         .filter((item) => ids.has(item.id))
         .map((item) => `${item.year}-${String(item.week_number).padStart(2, "0")}`),
     });
-  }, [filtrosRestaurados, importacoes, semanasSelecionadas]);
+  }, [dataMode, filtrosRestaurados, importacoes, semanasSelecionadas]);
 
   useEffect(() => {
-    writeSharedFilters({ bases: basesSelecionadas, type: tipoSelecionado, year: anoRanking });
-  }, [anoRanking, basesSelecionadas, tipoSelecionado]);
+    writeSavingsFilters(dataMode, { bases: basesSelecionadas, type: tipoSelecionado, year: anoRanking });
+  }, [anoRanking, basesSelecionadas, dataMode, tipoSelecionado]);
 
   useEffect(() => {
     if (importacoes.length === 0 || semanasSelecionadas.length === 0) return;
