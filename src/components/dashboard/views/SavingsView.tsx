@@ -169,22 +169,40 @@ export function SavingsView({
   const weeklyImportsQuery = useWeeklyImports();
   const weeklyHistoryQuery = useWeeklyImportsHistory();
   const realSavingsQuery = useQuery({
-    queryKey: ["real_savings", "dashboard"],
+    queryKey: ["real_savings", "dashboard", "saldo-operacional"],
     enabled: dataMode === "real",
     queryFn: async () => {
       const db = supabase as any;
-      const [{ data: rawImports, error: importsError }, { data: rawItems, error: itemsError }] = await Promise.all([
+      const readAll = async (factory: (from: number, to: number) => any) => {
+        const result: any[] = [];
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await factory(from, from + 999);
+          if (error) throw error;
+          result.push(...(data ?? []));
+          if (!data || data.length < 1000) break;
+        }
+        return result;
+      };
+
+      const [{ data: rawImports, error: importsError }, { data: operationalImports, error: operationalImportsError }] = await Promise.all([
         db.from("real_savings_imports").select("*").eq("status", "completed").order("imported_at", { ascending: false }),
-        db.from("real_savings_items").select("*"),
+        db.from("weekly_imports").select("id, week_code, year, week_number").eq("status", "completed").eq("is_current", true),
       ]);
       if (importsError) throw importsError;
-      if (itemsError) throw itemsError;
+      if (operationalImportsError) throw operationalImportsError;
+
+      const [rawItems, operationalItems] = await Promise.all([
+        readAll((from, to) => db.from("real_savings_items").select("*").range(from, to)),
+        readAll((from, to) => db.from("weekly_items").select("id, import_id, base, service, amount").range(from, to)),
+      ]);
+
       const itemsByImport = new Map<string, any[]>();
-      for (const item of rawItems ?? []) {
+      for (const item of rawItems) {
         const current = itemsByImport.get(item.import_id) ?? [];
         current.push(item);
         itemsByImport.set(item.import_id, current);
       }
+
       const imports = (rawImports ?? []).map((entry: any) => {
         const linked = itemsByImport.get(entry.id) ?? [];
         const reference = linked.find((item: any) => item.reference_date)?.reference_date ?? entry.imported_at;
@@ -208,23 +226,62 @@ export function SavingsView({
           bases_count: new Set(linked.map((item: any) => item.base).filter(Boolean)).size,
         };
       });
-      const items = (rawItems ?? []).map((item: any) => ({
-        id: item.id,
-        import_id: item.import_id,
-        base: item.base,
-        service: null,
-        package_id: null,
-        route_id: null,
-        driver: null,
-        description: item.classification,
-        event_date: item.reference_date,
-        amount: item.real_discount,
-        operational_status: item.status,
-        classification: item.classification,
-        decision: null,
-        evidence_url: null,
-        extra_data: item.extra_data,
-      }));
+
+      const weekKey = (year: unknown, week: unknown) => `${Number(year)}-${String(Number(week)).padStart(2, "0")}`;
+      const realImportById = new Map(imports.map((entry: any) => [entry.id, entry]));
+      const operationalImportById = new Map((operationalImports ?? []).map((entry: any) => [entry.id, entry]));
+      const grossByWeekBase = new Map<string, number>();
+      const recoveredByWeekBase = new Map<string, number>();
+
+      for (const item of operationalItems) {
+        const imported = operationalImportById.get(item.import_id);
+        const amount = Number(item.amount);
+        if (!imported || !Number.isFinite(amount)) continue;
+        const base = codigoOperacao(item.base, item.service);
+        if (!base) continue;
+        const key = `${weekKey(imported.year, imported.week_number)}|${base}`;
+        grossByWeekBase.set(key, (grossByWeekBase.get(key) ?? 0) + amount);
+      }
+
+      for (const item of rawItems) {
+        const imported = realImportById.get(item.import_id);
+        const recovered = Number(item.reversed_amount ?? item.real_discount ?? 0);
+        if (!imported || !Number.isFinite(recovered)) continue;
+        const base = codigoOperacao(item.base, null);
+        if (!base) continue;
+        const key = `${weekKey(imported.year, imported.week_number)}|${base}`;
+        recoveredByWeekBase.set(key, (recoveredByWeekBase.get(key) ?? 0) + recovered);
+      }
+
+      const items: any[] = [];
+      for (const imported of imports) {
+        const prefix = `${weekKey(imported.year, imported.week_number)}|`;
+        const bases = new Set<string>();
+        for (const key of grossByWeekBase.keys()) if (key.startsWith(prefix)) bases.add(key.slice(prefix.length));
+        for (const key of recoveredByWeekBase.keys()) if (key.startsWith(prefix)) bases.add(key.slice(prefix.length));
+        for (const base of bases) {
+          const key = `${prefix}${base}`;
+          const gross = grossByWeekBase.get(key) ?? 0;
+          const recovered = recoveredByWeekBase.get(key) ?? 0;
+          items.push({
+            id: `saldo-${imported.id}-${base}`,
+            import_id: imported.id,
+            base,
+            service: null,
+            package_id: null,
+            route_id: null,
+            driver: null,
+            description: "Perda efetiva após reversão",
+            event_date: null,
+            amount: Math.max(0, gross - recovered),
+            operational_status: "calculado",
+            classification: "Operacional menos NÃO DESCONTAR",
+            decision: null,
+            evidence_url: null,
+            extra_data: { bruto_operacional: gross, valor_revertido: recovered },
+          });
+        }
+      }
       return { imports, items };
     },
   });
