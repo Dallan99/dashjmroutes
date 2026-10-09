@@ -885,7 +885,8 @@ export function SavingsView({
       {/* 2. ÁREA PRINCIPAL CLARA */}
       <main className="flex-1 min-w-0 space-y-4">
         {/* 3. QUATRO CARDS NO TOPO */}
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {dataMode === "operational" && (
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Total de descontos"
             value={brl(dadosFinanceiros.totalGeral)}
@@ -919,7 +920,8 @@ export function SavingsView({
             tone="neutral"
             onClick={() => setModalDetalhe("semanas")}
           />
-        </section>
+          </section>
+        )}
 
         {/* Comparativo filtrado: operacional x reversão do setor de perdas */}
         {dataMode === "real" && (
