@@ -56,7 +56,7 @@ export function SavingsComparisonChart({
   selectedBaseCodes = [],
   selectedType = "TODOS",
 }: {
-  selectedWeekKeys?: string[];
+  selectedWeekKeys?: string[] | undefined;
   selectedBaseCodes?: string[];
   selectedType?: "TODOS" | "XPT" | "SERVICES";
 }) {

@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import {
   LIMITE_SAUDAVEL_OPERACAO,
   OPERACOES_OFICIAIS,
+  type WeeklyImportSummary,
+  type WeeklyItem,
   useWeeklyImports,
   useWeeklyImportsHistory,
   useWeeklyItems,
@@ -77,7 +79,6 @@ import {
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
-const TODAS_AS_SEMANAS = "__todas_as_semanas__";
 const LEGACY_SHARED_FILTERS_KEY = "jmroutes:savings:shared-filters";
 const FILTERS_KEY_PREFIX = "jmroutes:savings:filters";
 
@@ -210,7 +211,7 @@ export function SavingsView({
   const realSavingsQuery = useQuery({
     queryKey: ["real_savings", "dashboard", "saldo-operacional"],
     enabled: dataMode === "real",
-    queryFn: async () => {
+    queryFn: async (): Promise<{ imports: WeeklyImportSummary[]; items: WeeklyItem[] }> => {
       const db = supabase as any;
       const readAll = async (factory: (from: number, to: number) => any) => {
         const result: any[] = [];
@@ -267,8 +268,8 @@ export function SavingsView({
       });
 
       const weekKey = (year: unknown, week: unknown) => `${Number(year)}-${String(Number(week)).padStart(2, "0")}`;
-      const realImportById = new Map(imports.map((entry: any) => [entry.id, entry]));
-      const operationalImportById = new Map((operationalImports ?? []).map((entry: any) => [entry.id, entry]));
+      const realImportById = new Map<string, any>(imports.map((entry: any) => [entry.id, entry] as const));
+      const operationalImportById = new Map<string, any>((operationalImports ?? []).map((entry: any) => [entry.id, entry] as const));
       const grossByWeekBase = new Map<string, number>();
       const recoveredByWeekBase = new Map<string, number>();
 
@@ -336,6 +337,7 @@ export function SavingsView({
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">(initialSharedFilters.type);
   const [anoRanking, setAnoRanking] = useState<number | null>(initialSharedFilters.year);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
+  const [abaOfensora, setAbaOfensora] = useState<"bases" | "pedidos">("bases");
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
@@ -434,7 +436,7 @@ export function SavingsView({
         .eq("id", importacaoAtual.id);
       if (erroImportacao) throw erroImportacao;
 
-      setImportacaoSelecionada(TODAS_AS_SEMANAS);
+      setSemanasSelecionadas([]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
         queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
@@ -536,6 +538,38 @@ export function SavingsView({
       };
     }).sort((a, b) => b.mediaSemanal - a.mediaSemanal);
   }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
+
+  /** Top 10 pedidos individuais (cada weekly_items é um pedido) dentro dos filtros ativos. */
+  const top10Pedidos = useMemo(() => {
+    const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
+    const importacoesPorId = new Map(importacoesDoAno.map((importacao) => [importacao.id, importacao]));
+    const idsSelecionados = new Set(semanasSelecionadas);
+
+    return itensHistorico
+      .filter((item) => {
+        if (!importacoesPorId.has(item.import_id)) return false;
+        if (!todasSemanas && !idsSelecionados.has(item.import_id)) return false;
+        const b = codigoOperacao(item.base, item.service);
+        const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
+        return matchBase(b) && matchTipo;
+      })
+      .filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount))
+      .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
+      .slice(0, 10)
+      .map((item) => {
+        const importacao = importacoesPorId.get(item.import_id);
+        const b = codigoOperacao(item.base, item.service);
+        return {
+          id: item.id,
+          pedido: (item.package_id ?? "").trim() || "Sem identificador",
+          descricao: (item.description ?? "").trim() || "Sem descrição",
+          rotulo: b ? rotuloBase(b) : "Sem base",
+          tipo: getOperationType(b),
+          semana: importacao ? `${importacao.week_code} (${importacao.year})` : "—",
+          valor: item.amount ?? 0,
+        };
+      });
+  }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, semanasSelecionadas, todasSemanas, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const idsSelecionados = new Set(semanasSelecionadas);
@@ -910,7 +944,10 @@ export function SavingsView({
             icon={ShieldAlert}
             tone="loss"
             valueClassName="text-xl leading-7 sm:text-[1.5rem]"
-            onClick={() => setModalDetalhe("ofensora")}
+            onClick={() => {
+              setModalDetalhe("ofensora");
+              setAbaOfensora("bases");
+            }}
           />
           <KpiCard
             label="Semanas analisadas"
@@ -1268,32 +1305,93 @@ export function SavingsView({
                   <ShieldAlert className="size-4 text-destructive" /> Bases Ofensoras do Período
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Lista ordenada por maior perda registrada na semana ativa.
+                  Ranking por base e maiores pedidos individuais dentro dos filtros ativos.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 pt-2 text-xs">
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-muted/60 text-muted-foreground font-bold uppercase text-[10px]">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Pos.</th>
-                        <th className="px-3 py-2 text-left">Base</th>
-                        <th className="px-3 py-2 text-center">Tipo</th>
-                        <th className="px-3 py-2 text-right">Total Perdido</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dadosFinanceiros.listaBases.map((item, idx) => (
-                        <tr key={item.codigo} className="border-t border-border hover:bg-muted/20">
-                          <td className="px-3 py-2 font-bold text-primary">{idx + 1}º</td>
-                          <td className="px-3 py-2 font-semibold">{item.rotulo}</td>
-                          <td className="px-3 py-2 text-center"><Badge variant={item.tipo === "XPT" ? "default" : "secondary"}>{item.tipo}</Badge></td>
-                          <td className="px-3 py-2 text-right font-extrabold tabular-nums text-destructive">{brl(item.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="space-y-3 pt-2 text-xs">
+                <div className="flex gap-1 border-b border-border">
+                  <button
+                    type="button"
+                    onClick={() => setAbaOfensora("bases")}
+                    className={cn(
+                      "-mb-px border-b-2 px-3 py-1.5 font-bold uppercase tracking-wider transition-colors",
+                      abaOfensora === "bases" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Ranking de bases
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAbaOfensora("pedidos")}
+                    className={cn(
+                      "-mb-px border-b-2 px-3 py-1.5 font-bold uppercase tracking-wider transition-colors",
+                      abaOfensora === "pedidos" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Top 10 pedidos ofensores
+                  </button>
                 </div>
+
+                {abaOfensora === "bases" && (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted/60 text-muted-foreground font-bold uppercase text-[10px]">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Pos.</th>
+                          <th className="px-3 py-2 text-left">Base</th>
+                          <th className="px-3 py-2 text-center">Tipo</th>
+                          <th className="px-3 py-2 text-right">Total Perdido</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dadosFinanceiros.listaBases.map((item, idx) => (
+                          <tr key={item.codigo} className="border-t border-border hover:bg-muted/20">
+                            <td className="px-3 py-2 font-bold text-primary">{idx + 1}º</td>
+                            <td className="px-3 py-2 font-semibold">{item.rotulo}</td>
+                            <td className="px-3 py-2 text-center"><Badge variant={item.tipo === "XPT" ? "default" : "secondary"}>{item.tipo}</Badge></td>
+                            <td className="px-3 py-2 text-right font-extrabold tabular-nums text-destructive">{brl(item.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {abaOfensora === "pedidos" && (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted/60 text-muted-foreground font-bold uppercase text-[10px]">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Pos.</th>
+                          <th className="px-3 py-2 text-left">Pedido</th>
+                          <th className="px-3 py-2 text-left">Descrição</th>
+                          <th className="px-3 py-2 text-left">Base</th>
+                          <th className="px-3 py-2 text-center">Tipo</th>
+                          <th className="px-3 py-2 text-left">Semana</th>
+                          <th className="px-3 py-2 text-right">Desconto</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {top10Pedidos.map((item, idx) => (
+                          <tr key={item.id} className="border-t border-border hover:bg-muted/20">
+                            <td className="px-3 py-2 font-bold text-primary whitespace-nowrap">{idx + 1}º</td>
+                            <td className="px-3 py-2 font-semibold whitespace-nowrap">{item.pedido}</td>
+                            <td className="px-3 py-2 text-muted-foreground max-w-[220px] truncate" title={item.descricao}>{item.descricao}</td>
+                            <td className="px-3 py-2 font-semibold whitespace-nowrap">{item.rotulo}</td>
+                            <td className="px-3 py-2 text-center"><Badge variant={item.tipo === "XPT" ? "default" : "secondary"}>{item.tipo}</Badge></td>
+                            <td className="px-3 py-2 whitespace-nowrap">{item.semana}</td>
+                            <td className="px-3 py-2 text-right font-extrabold tabular-nums text-destructive whitespace-nowrap">{brl(item.valor)}</td>
+                          </tr>
+                        ))}
+                        {top10Pedidos.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhum pedido encontrado para o filtro atual.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </>
           )}
