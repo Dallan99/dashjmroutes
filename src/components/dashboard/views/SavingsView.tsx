@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import {
   LIMITE_SAUDAVEL_OPERACAO,
   OPERACOES_OFICIAIS,
+  type WeeklyImportSummary,
+  type WeeklyItem,
   useWeeklyImports,
   useWeeklyImportsHistory,
   useWeeklyItems,
@@ -77,7 +79,6 @@ import {
 } from "@/components/history/weekly-api";
 import { cn } from "@/lib/utils";
 
-const TODAS_AS_SEMANAS = "__todas_as_semanas__";
 const LEGACY_SHARED_FILTERS_KEY = "jmroutes:savings:shared-filters";
 const FILTERS_KEY_PREFIX = "jmroutes:savings:filters";
 
@@ -210,7 +211,7 @@ export function SavingsView({
   const realSavingsQuery = useQuery({
     queryKey: ["real_savings", "dashboard", "saldo-operacional"],
     enabled: dataMode === "real",
-    queryFn: async () => {
+    queryFn: async (): Promise<{ imports: WeeklyImportSummary[]; items: WeeklyItem[] }> => {
       const db = supabase as any;
       const readAll = async (factory: (from: number, to: number) => any) => {
         const result: any[] = [];
@@ -435,7 +436,7 @@ export function SavingsView({
         .eq("id", importacaoAtual.id);
       if (erroImportacao) throw erroImportacao;
 
-      setImportacaoSelecionada(TODAS_AS_SEMANAS);
+      setSemanasSelecionadas([]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
         queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
