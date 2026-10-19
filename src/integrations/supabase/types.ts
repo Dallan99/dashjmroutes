@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -195,6 +195,104 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      real_savings_imports: {
+        Row: {
+          created_at: string
+          file_hash: string
+          file_name: string
+          id: string
+          imported_at: string
+          mapping: Json
+          rejected_rows: number
+          sheet_name: string | null
+          status: string
+          valid_rows: number
+          week_code: string | null
+          week_number: number | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          file_name: string
+          id?: string
+          imported_at?: string
+          mapping?: Json
+          rejected_rows?: number
+          sheet_name?: string | null
+          status?: string
+          valid_rows?: number
+          week_code?: string | null
+          week_number?: number | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          file_name?: string
+          id?: string
+          imported_at?: string
+          mapping?: Json
+          rejected_rows?: number
+          sheet_name?: string | null
+          status?: string
+          valid_rows?: number
+          week_code?: string | null
+          week_number?: number | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      real_savings_items: {
+        Row: {
+          base: string | null
+          charged_amount: number | null
+          classification: string | null
+          created_at: string
+          extra_data: Json
+          id: string
+          import_id: string
+          real_discount: number | null
+          reference_date: string | null
+          reversed_amount: number | null
+          status: string | null
+        }
+        Insert: {
+          base?: string | null
+          charged_amount?: number | null
+          classification?: string | null
+          created_at?: string
+          extra_data?: Json
+          id?: string
+          import_id: string
+          real_discount?: number | null
+          reference_date?: string | null
+          reversed_amount?: number | null
+          status?: string | null
+        }
+        Update: {
+          base?: string | null
+          charged_amount?: number | null
+          classification?: string | null
+          created_at?: string
+          extra_data?: Json
+          id?: string
+          import_id?: string
+          real_discount?: number | null
+          reference_date?: string | null
+          reversed_amount?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "real_savings_items_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "real_savings_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_base_mappings: {
         Row: {
