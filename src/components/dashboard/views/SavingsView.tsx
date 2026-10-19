@@ -336,6 +336,7 @@ export function SavingsView({
   const [tipoSelecionado, setTipoSelecionado] = useState<"TODOS" | "XPT" | "SERVICES">(initialSharedFilters.type);
   const [anoRanking, setAnoRanking] = useState<number | null>(initialSharedFilters.year);
   const [modalDetalhe, setModalDetalhe] = useState<"total" | "media" | "ofensora" | "semanas" | null>(null);
+  const [abaOfensora, setAbaOfensora] = useState<"bases" | "pedidos">("bases");
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [excluindoSemana, setExcluindoSemana] = useState(false);
 
@@ -536,6 +537,38 @@ export function SavingsView({
       };
     }).sort((a, b) => b.mediaSemanal - a.mediaSemanal);
   }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, tipoSelecionado]);
+
+  /** Top 10 pedidos individuais (cada weekly_items é um pedido) dentro dos filtros ativos. */
+  const top10Pedidos = useMemo(() => {
+    const importacoesDoAno = importacoes.filter((importacao) => anoRanking === null || importacao.year === anoRanking);
+    const importacoesPorId = new Map(importacoesDoAno.map((importacao) => [importacao.id, importacao]));
+    const idsSelecionados = new Set(semanasSelecionadas);
+
+    return itensHistorico
+      .filter((item) => {
+        if (!importacoesPorId.has(item.import_id)) return false;
+        if (!todasSemanas && !idsSelecionados.has(item.import_id)) return false;
+        const b = codigoOperacao(item.base, item.service);
+        const matchTipo = tipoSelecionado === "TODOS" || getOperationType(b) === tipoSelecionado;
+        return matchBase(b) && matchTipo;
+      })
+      .filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount))
+      .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
+      .slice(0, 10)
+      .map((item) => {
+        const importacao = importacoesPorId.get(item.import_id);
+        const b = codigoOperacao(item.base, item.service);
+        return {
+          id: item.id,
+          pedido: (item.package_id ?? "").trim() || "Sem identificador",
+          descricao: (item.description ?? "").trim() || "Sem descrição",
+          rotulo: b ? rotuloBase(b) : "Sem base",
+          tipo: getOperationType(b),
+          semana: importacao ? `${importacao.week_code} (${importacao.year})` : "—",
+          valor: item.amount ?? 0,
+        };
+      });
+  }, [anoRanking, basesSelecionadas, importacoes, itensHistorico, semanasSelecionadas, todasSemanas, tipoSelecionado]);
 
   const evolucaoSemanal = useMemo(() => {
     const idsSelecionados = new Set(semanasSelecionadas);
@@ -910,7 +943,10 @@ export function SavingsView({
             icon={ShieldAlert}
             tone="loss"
             valueClassName="text-xl leading-7 sm:text-[1.5rem]"
-            onClick={() => setModalDetalhe("ofensora")}
+            onClick={() => {
+              setModalDetalhe("ofensora");
+              setAbaOfensora("bases");
+            }}
           />
           <KpiCard
             label="Semanas analisadas"
