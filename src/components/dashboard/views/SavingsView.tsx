@@ -268,8 +268,8 @@ export function SavingsView({
       });
 
       const weekKey = (year: unknown, week: unknown) => `${Number(year)}-${String(Number(week)).padStart(2, "0")}`;
-      const realImportById = new Map(imports.map((entry: any) => [entry.id, entry]));
-      const operationalImportById = new Map((operationalImports ?? []).map((entry: any) => [entry.id, entry]));
+      const realImportById = new Map<string, any>(imports.map((entry: any) => [entry.id, entry] as const));
+      const operationalImportById = new Map<string, any>((operationalImports ?? []).map((entry: any) => [entry.id, entry] as const));
       const grossByWeekBase = new Map<string, number>();
       const recoveredByWeekBase = new Map<string, number>();
 
