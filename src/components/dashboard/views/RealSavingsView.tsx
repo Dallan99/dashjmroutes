@@ -20,9 +20,7 @@ const EMPTY: Mapping = { charged: "", reversed: "", date: "", base: "", classifi
 function weekFromName(name: string) {
   const match = name.toUpperCase().match(/W[ _-]?(\d{1,2})/);
   const weekNumber = match ? Number(match[1]) : null;
-  const yearMatch = name.match(/(?:19|20)\d{2}/);
-  const year = yearMatch ? Number(yearMatch[0]) : new Date().getFullYear();
-  return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year };
+  return { weekNumber, weekCode: weekNumber ? `W${String(weekNumber).padStart(2, "0")}` : null, year: new Date().getFullYear() };
 }
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const aliases: Record<keyof Mapping, string[]> = {
