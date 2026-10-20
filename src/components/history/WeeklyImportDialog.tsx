@@ -149,23 +149,6 @@ export function WeeklyImportDialog({
       toast.error("Informe uma semana válida", { description: "Use o formato W01 até W53." });
       return;
     }
-    const colunaSemana = planilha.headers.find((header) => {
-      const normalizado = header.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      return ["semana", "week", "weeknumber", "numerodasemana"].includes(normalizado);
-    });
-    if (colunaSemana) {
-      const semanasNoArquivo = new Set(
-        planilha.rows
-          .map((row) => normalizarSemana(row[colunaSemana]))
-          .filter((value): value is string => value !== null),
-      );
-      if (semanasNoArquivo.size > 0 && (semanasNoArquivo.size !== 1 || !semanasNoArquivo.has(weekCode))) {
-        toast.error("A semana do arquivo não corresponde", {
-          description: `O arquivo contém ${Array.from(semanasNoArquivo).sort().join(", ")}, mas foi selecionado ${weekCode}. Confira a planilha antes de importar.`,
-        });
-        return;
-      }
-    }
     if (resultado.validas.length === 0) {
       toast.error("Nenhuma linha válida para importar.");
       return;
