@@ -43,7 +43,7 @@ const ALIASES: Record<CampoInterno, string[]> = {
   package_id: ["packageid", "iddopacote", "idpacote", "pacote", "tracking", "trackingid", "codigorastreio", "rastreio"],
   route_id: ["routeid", "iddarota", "idrota", "rota", "circuito"],
   driver: ["driver", "motorista", "condutor", "entregador", "nomedomotorista", "nomemotorista"],
-  description: ["description", "descricaodoitem", "descricaodopacote", "descricao", "detalhe", "ocorrencia", "itemdescription", "item"],
+  description: ["description", "descricaodoitem", "descricaodointem", "descricaodopacote", "descricao", "detalhe", "ocorrencia", "itemdescription", "item"],
   event_date: ["eventdate", "datadoevento", "datadoinsucesso", "dataevento", "datainsucesso", "dataocorrencia", "data", "occurrencedate"],
   amount: ["amount", "valor", "valorr", "r", "rs", "custo", "perda", "gasto", "valortotal", "total", "prejuizo", "loss"],
   operational_status: ["operationalstatus", "statusoperacional", "situacaooperacional", "status", "situacao"],
