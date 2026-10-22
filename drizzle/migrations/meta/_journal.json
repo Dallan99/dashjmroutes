@@ -8,6 +8,13 @@
       "when": 1792686981513,
       "tag": "0000_delete_weekly_import_safely",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792687137636,
+      "tag": "0001_allow_existing_weekly_delete_callers",
+      "breakpoints": true
     }
   ]
 }

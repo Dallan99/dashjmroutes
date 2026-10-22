@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
@@ -67,8 +68,8 @@ test("no remaining completed version leaves no current version for that week", a
   await remove();
   expect((await rows("weekly_imports")).filter((r: any) => r.week_number === 38)).toHaveLength(0);
 });
-test("anonymous callers cannot execute deletion", async () => {
-  await db.exec("SET ROLE anon");
+test("anonymous callers with execute cannot bypass existing table permissions", async () => {
+  await db.exec("GRANT EXECUTE ON FUNCTION delete_weekly_import_safely(uuid,text,integer,integer,integer,integer) TO anon; SET ROLE anon");
   await expect(remove()).rejects.toThrow("permission denied");
   await db.exec("RESET ROLE");
   expect(await rows("weekly_items")).toHaveLength(4);

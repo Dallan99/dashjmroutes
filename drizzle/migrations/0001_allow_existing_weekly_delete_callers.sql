@@ -1,0 +1,2 @@
+GRANT EXECUTE ON FUNCTION public.delete_weekly_import_safely(uuid, text, integer, integer, integer, integer) TO anon;
+COMMENT ON FUNCTION public.delete_weekly_import_safely(uuid, text, integer, integer, integer, integer) IS 'Atomic confirmed deletion; SECURITY INVOKER enforces existing table grants and RLS for all callers, including anon. No table access is widened.';
