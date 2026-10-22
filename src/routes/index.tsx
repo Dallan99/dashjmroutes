@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
-import { brl, BASES, perdaProjetada } from "@/components/dashboard/data";
+import { BASES } from "@/components/dashboard/data";
 import { SavingsView } from "@/components/dashboard/views/SavingsView";
 import { RealSavingsView } from "@/components/dashboard/views/RealSavingsView";
 import { LaborView } from "@/components/dashboard/views/LaborView";
@@ -103,16 +103,6 @@ function Dashboard() {
     }
   };
 
-  const currentSavingSemanal = () => {
-    const fator = eficacia / 100;
-    const escopo = BASES.filter((b) => !b.comJMRoutes);
-    const totalAtual = escopo.reduce((s, b) => s + b.perdaAtual, 0);
-    const totalProjetado = escopo.reduce((s, b) => {
-      const ativa = selecionadas.includes(b.id);
-      return s + (ativa ? perdaProjetada(b.perdaAtual, fator) : b.perdaAtual);
-    }, 0);
-    return totalAtual - totalProjetado;
-  };
 
   return (
     <main className="min-h-screen bg-background text-foreground transition-colors duration-300">
@@ -141,14 +131,6 @@ function Dashboard() {
             >
               {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
             </button>
-            <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2">
-              <p className="text-[11px] uppercase tracking-wider text-white">
-                Economia anual projetada (Operacional)
-              </p>
-              <p className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {brl(currentSavingSemanal() * 52)}
-              </p>
-            </div>
           </div>
         </div>
       </header>
