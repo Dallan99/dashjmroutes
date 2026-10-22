@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
+import { WeeklyImportHistory } from "@/components/history/WeeklyImportHistory";
 import { RealSavingsImportButton } from "@/components/dashboard/views/RealSavingsView";
 import { SavingsComparisonChart } from "@/components/dashboard/views/SavingsComparisonChart";
 import { supabase } from "@/integrations/supabase/client";
@@ -712,8 +713,9 @@ export function SavingsView({
         <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
           Importe uma planilha semanal para habilitar todos os indicadores executivos de Savings.
         </p>
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton />}
+          {dataMode === "operational" && <WeeklyImportHistory onDeleted={(id) => setSemanasSelecionadas((previous) => previous.filter((selected) => selected !== id))} />}
         </div>
       </div>
     );
@@ -904,7 +906,7 @@ export function SavingsView({
           <div className="border-t border-zinc-800/80 pt-3">
             {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />}
           </div>
-          <button
+          {dataMode === "operational" ? <WeeklyImportHistory onDeleted={(id) => setSemanasSelecionadas((previous) => previous.filter((selected) => selected !== id))} /> : <button
             type="button"
             onClick={() => setConfirmarExclusao(true)}
             disabled={!importacaoAtual || excluindoSemana}
@@ -912,7 +914,7 @@ export function SavingsView({
           >
             <Trash2 className="size-3.5" />
             Excluir semana
-          </button>
+          </button>}
         </div>
       </aside>
 
