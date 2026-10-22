@@ -11,3 +11,4 @@
 
 - Weekly operational import deletion uses the security-invoker `delete_weekly_import_safely` RPC with confirmed metadata/counts; keep deletion and same-week version promotion atomic so RLS failures never leave partially deleted imports.
 - Keep deletion confirmation separate from dashboard filters and accessible through weekly import history, including when no current version exists, so users can choose a specific saved version.
+- Validate deletion SQL in isolated PGlite fixtures using the dedicated Vitest configuration, so rollback and version rules can be tested without deleting operational records.
