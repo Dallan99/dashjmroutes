@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { WeeklyImportButton } from "@/components/history/WeeklyImportDialog";
+import { WeeklyImportHistory } from "@/components/history/WeeklyImportHistory";
 import { RealSavingsImportButton } from "@/components/dashboard/views/RealSavingsView";
 import { SavingsComparisonChart } from "@/components/dashboard/views/SavingsComparisonChart";
 import { supabase } from "@/integrations/supabase/client";
@@ -406,45 +407,15 @@ export function SavingsView({
   }, [todasSemanas, semanasSelecionadas, itensHistorico]);
 
   const excluirSemana = async () => {
-    if (!importacaoAtual) return;
+    if (!importacaoAtual || dataMode !== "real") return;
 
     setExcluindoSemana(true);
     try {
-      if (dataMode === "real") {
         const { error } = await (supabase as any).from("real_savings_imports").delete().eq("id", importacaoAtual.id);
         if (error) throw error;
         setSemanasSelecionadas([]);
         await queryClient.invalidateQueries({ queryKey: ["real_savings"] });
         toast.success(`${importacaoAtual.week_code} excluída`, { description: "A importação real foi removida." });
-        return;
-      }
-      const { error: erroObservacoes } = await supabase
-        .from("week_notes")
-        .delete()
-        .eq("import_id", importacaoAtual.id);
-      if (erroObservacoes) throw erroObservacoes;
-
-      const { error: erroItens } = await supabase
-        .from("weekly_items")
-        .delete()
-        .eq("import_id", importacaoAtual.id);
-      if (erroItens) throw erroItens;
-
-      const { error: erroImportacao } = await supabase
-        .from("weekly_imports")
-        .delete()
-        .eq("id", importacaoAtual.id);
-      if (erroImportacao) throw erroImportacao;
-
-      setSemanasSelecionadas([]);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
-        queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
-        queryClient.invalidateQueries({ queryKey: ["week_notes"] }),
-      ]);
-      toast.success(`${importacaoAtual.week_code} excluída`, {
-        description: "A semana foi removida e já pode ser importada novamente.",
-      });
     } catch (error) {
       console.error("[Savings] Falha ao excluir semana:", error);
       toast.error("Não foi possível excluir a semana", {
@@ -712,8 +683,9 @@ export function SavingsView({
         <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
           Importe uma planilha semanal para habilitar todos os indicadores executivos de Savings.
         </p>
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton />}
+          {dataMode === "operational" && <WeeklyImportHistory onDeleted={(id) => setSemanasSelecionadas((previous) => previous.filter((selected) => selected !== id))} />}
         </div>
       </div>
     );
@@ -904,7 +876,7 @@ export function SavingsView({
           <div className="border-t border-zinc-800/80 pt-3">
             {dataMode === "real" ? <RealSavingsImportButton /> : <WeeklyImportButton className="w-full justify-center bg-zinc-100 text-zinc-950 font-bold hover:bg-white text-xs h-9 shadow-sm" />}
           </div>
-          <button
+          {dataMode === "operational" ? <WeeklyImportHistory onDeleted={(id) => setSemanasSelecionadas((previous) => previous.filter((selected) => selected !== id))} /> : <button
             type="button"
             onClick={() => setConfirmarExclusao(true)}
             disabled={!importacaoAtual || excluindoSemana}
@@ -912,7 +884,7 @@ export function SavingsView({
           >
             <Trash2 className="size-3.5" />
             Excluir semana
-          </button>
+          </button>}
         </div>
       </aside>
 

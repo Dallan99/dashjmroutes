@@ -483,6 +483,17 @@ export type Database = {
         Args: { p_import_id: string }
         Returns: undefined
       }
+      delete_weekly_import_safely: {
+        Args: {
+          p_file_name: string
+          p_import_id: string
+          p_items_count: number
+          p_notes_count: number
+          p_week_number: number
+          p_year: number
+        }
+        Returns: Json
+      }
       finalize_weekly_import: {
         Args: { p_import_id: string }
         Returns: undefined

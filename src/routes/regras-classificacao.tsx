@@ -23,11 +23,15 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/regras-classificacao")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Regras de Classificação — JMRoutes" },
       {
         name: "description",
         content: "Acompanhamento das classificações reais importadas no histórico semanal.",
       },
+      { property: "og:title", content: "Regras de Classificação — JMRoutes" },
+      { property: "og:description", content: "Acompanhamento das classificações reais importadas no histórico semanal." },
     ],
   }),
   component: RegrasClassificacao,

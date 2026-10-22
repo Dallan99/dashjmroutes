@@ -18,6 +18,8 @@ export const Route = createFileRoute("/")({
   validateSearch: (search) => dashboardSearchSchema.parse(search),
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "JMRoutes — Painel de Savings por Base" },
       {
         name: "description",
