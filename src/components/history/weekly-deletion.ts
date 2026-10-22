@@ -30,7 +30,7 @@ export async function deleteConfirmedWeeklyImport(confirmation: DeletionConfirma
     p_notes_count: confirmation.notes_count,
   });
   if (error) throw error;
-  if (!data || typeof data !== "object" || Array.isArray(data) || data.deleted_import_id !== confirmation.id) {
+  if (!data || typeof data !== "object" || Array.isArray(data) || data["deleted_import_id"] !== confirmation.id) {
     throw new Error("Não foi possível confirmar a exclusão. Atualize o histórico antes de tentar novamente.");
   }
   return data;

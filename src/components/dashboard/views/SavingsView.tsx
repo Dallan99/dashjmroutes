@@ -407,45 +407,15 @@ export function SavingsView({
   }, [todasSemanas, semanasSelecionadas, itensHistorico]);
 
   const excluirSemana = async () => {
-    if (!importacaoAtual) return;
+    if (!importacaoAtual || dataMode !== "real") return;
 
     setExcluindoSemana(true);
     try {
-      if (dataMode === "real") {
         const { error } = await (supabase as any).from("real_savings_imports").delete().eq("id", importacaoAtual.id);
         if (error) throw error;
         setSemanasSelecionadas([]);
         await queryClient.invalidateQueries({ queryKey: ["real_savings"] });
         toast.success(`${importacaoAtual.week_code} excluída`, { description: "A importação real foi removida." });
-        return;
-      }
-      const { error: erroObservacoes } = await supabase
-        .from("week_notes")
-        .delete()
-        .eq("import_id", importacaoAtual.id);
-      if (erroObservacoes) throw erroObservacoes;
-
-      const { error: erroItens } = await supabase
-        .from("weekly_items")
-        .delete()
-        .eq("import_id", importacaoAtual.id);
-      if (erroItens) throw erroItens;
-
-      const { error: erroImportacao } = await supabase
-        .from("weekly_imports")
-        .delete()
-        .eq("id", importacaoAtual.id);
-      if (erroImportacao) throw erroImportacao;
-
-      setSemanasSelecionadas([]);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["weekly_imports"] }),
-        queryClient.invalidateQueries({ queryKey: ["weekly_items"] }),
-        queryClient.invalidateQueries({ queryKey: ["week_notes"] }),
-      ]);
-      toast.success(`${importacaoAtual.week_code} excluída`, {
-        description: "A semana foi removida e já pode ser importada novamente.",
-      });
     } catch (error) {
       console.error("[Savings] Falha ao excluir semana:", error);
       toast.error("Não foi possível excluir a semana", {
