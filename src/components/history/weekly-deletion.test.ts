@@ -73,3 +73,13 @@ test("anonymous callers with execute cannot bypass existing table permissions", 
   await db.exec("RESET ROLE");
   expect(await rows("weekly_items")).toHaveLength(4);
 });
+test("processing imports cannot be removed", async () => {
+  await db.exec(`UPDATE weekly_imports SET status='processing' WHERE id='${id(2)}'`);
+  await expect(remove()).rejects.toThrow("término do processamento");
+  expect(await rows("weekly_items")).toHaveLength(4);
+});
+test("repeated deletion returns an error, not false success", async () => {
+  await remove();
+  await expect(remove()).rejects.toThrow("Importação não encontrada");
+  expect(await rows("weekly_imports")).toHaveLength(2);
+});
