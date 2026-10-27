@@ -654,6 +654,26 @@ export function SavingsView({
     })).sort((a, b) => b.total - a.total);
   }, [dadosFinanceiros.totalGeral, itensFiltrados]);
 
+  /** Lista cada pacote descontado dentro dos filtros ativos, do maior para o menor valor. */
+  const pacotesDetalhados = useMemo(() => {
+    const semanaPorImportacao = new Map(importacoes.map((imp) => [imp.id, imp.week_code]));
+    return itensFiltrados
+      .filter((item) => typeof item.amount === "number" && Number.isFinite(item.amount) && (item.package_id ?? "").trim())
+      .map((item) => {
+        const operacao = codigoOperacao(item.base, item.service) || "Sem base";
+        return {
+          id: item.id,
+          semana: semanaPorImportacao.get(item.import_id) ?? "—",
+          origem: rotuloOrigem(item),
+          operacao,
+          pacote: (item.package_id ?? "").trim(),
+          descricao: (item.description ?? "").trim() || "Sem descrição",
+          valor: item.amount ?? 0,
+        };
+      })
+      .sort((a, b) => b.valor - a.valor);
+  }, [importacoes, itensFiltrados]);
+
   if (carregandoImportacoes) {
     return <p className="py-10 text-center text-sm font-medium text-muted-foreground">Carregando dados do Dashboard Savings…</p>;
   }
@@ -1225,6 +1245,37 @@ export function SavingsView({
                     </tbody>
                   </table>
                 </div>
+                {pacotesDetalhados.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">
+                      Pacotes descontados ({pacotesDetalhados.length})
+                    </p>
+                    <div className="max-h-80 overflow-auto rounded-lg border border-border">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-muted text-muted-foreground font-bold uppercase text-[10px]">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Semana</th>
+                            <th className="px-3 py-2 text-left">Base</th>
+                            <th className="px-3 py-2 text-left">ID do pacote</th>
+                            <th className="px-3 py-2 text-left">Descrição do item</th>
+                            <th className="px-3 py-2 text-right">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pacotesDetalhados.map((pacote) => (
+                            <tr key={pacote.id} className="border-t border-border align-top hover:bg-muted/20">
+                              <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{pacote.semana}</td>
+                              <td className="px-3 py-2 whitespace-nowrap font-semibold" title={rotuloBase(pacote.operacao)}>{pacote.origem}</td>
+                              <td className="px-3 py-2 whitespace-nowrap font-mono tabular-nums select-all">{pacote.pacote}</td>
+                              <td className="px-3 py-2 min-w-[12rem]">{pacote.descricao}</td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap font-extrabold tabular-nums text-destructive">{brl(pacote.valor)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
