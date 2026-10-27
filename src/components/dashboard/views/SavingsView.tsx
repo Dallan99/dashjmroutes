@@ -233,8 +233,8 @@ export function SavingsView({
       if (operationalImportsError) throw operationalImportsError;
 
       const [rawItems, operationalItems] = await Promise.all([
-        readAll((from, to) => db.from("real_savings_items").select("*").range(from, to)),
-        readAll((from, to) => db.from("weekly_items").select("id, import_id, base, service, amount").range(from, to)),
+        readAll((from, to) => db.from("real_savings_items").select("*").order("id").range(from, to)),
+        readAll((from, to) => db.from("weekly_items").select("id, import_id, base, service, amount").order("id").range(from, to)),
       ]);
 
       const itemsByImport = new Map<string, any[]>();

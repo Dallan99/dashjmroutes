@@ -74,8 +74,8 @@ export function SavingsComparisonChart({
       const opIds = (opImports ?? []).map((item: any) => item.id);
       const realIds = (realImports ?? []).map((item: any) => item.id);
       const [opItems, realItems] = await Promise.all([
-        opIds.length ? allRows((from, to) => db.from("weekly_items").select("import_id, base, service, amount").in("import_id", opIds).range(from, to)) : [],
-        realIds.length ? allRows((from, to) => db.from("real_savings_items").select("import_id, base, real_discount, reversed_amount").in("import_id", realIds).range(from, to)) : [],
+        opIds.length ? allRows((from, to) => db.from("weekly_items").select("import_id, base, service, amount").in("import_id", opIds).order("id").range(from, to)) : [],
+        realIds.length ? allRows((from, to) => db.from("real_savings_items").select("import_id, base, real_discount, reversed_amount").in("import_id", realIds).order("id").range(from, to)) : [],
       ]);
 
       const selectedBases = new Set(selectedBaseCodes);

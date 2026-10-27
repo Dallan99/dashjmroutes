@@ -103,8 +103,19 @@ export function RealSavingsView() {
 
   const db = supabase as any;
   const reload = async () => {
+    // Pagina os itens: o Supabase devolve no máximo 1.000 linhas por consulta.
+    const readAllItems = async () => {
+      const result: Item[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await db.from("real_savings_items").select("*")
+          .order("reference_date", { ascending: false }).order("id").range(from, from + 999);
+        if (error) return { data: null, error };
+        result.push(...(data ?? []));
+        if (!data || data.length < 1000) return { data: result, error: null };
+      }
+    };
     const [{ data: loadedItems, error: itemError }, { data: loadedImports, error: importError }] = await Promise.all([
-      db.from("real_savings_items").select("*").order("reference_date", { ascending: false }),
+      readAllItems(),
       db.from("real_savings_imports").select("*").eq("status", "completed").order("imported_at", { ascending: false }),
     ]);
     if (itemError || importError) setMessage("Não foi possível carregar os savings reais.");

@@ -224,12 +224,9 @@ export function useWeeklyImports() {
       if (!imports?.length) return [];
 
       const importIds = imports.map((item) => item.id);
-      const { data: itemReferences, error: itemsError } = await supabase
-        .from("weekly_items")
-        .select("import_id, base")
-        .in("import_id", importIds);
-
-      if (itemsError) throw itemsError;
+      const itemReferences = await lerTodasAsPaginas((from, to) =>
+        supabase.from("weekly_items").select("import_id, base").in("import_id", importIds).order("id").range(from, to),
+      );
 
       const totalsByImport = new Map<string, { items: number; bases: Set<string> }>();
       for (const item of itemReferences ?? []) {
@@ -270,11 +267,9 @@ export function useWeeklyImportsHistory() {
       if (!imports?.length) return [];
 
       const importIds = imports.map((item) => item.id);
-      const { data: itemReferences, error: itemsError } = await supabase
-        .from("weekly_items")
-        .select("import_id, base")
-        .in("import_id", importIds);
-      if (itemsError) throw itemsError;
+      const itemReferences = await lerTodasAsPaginas((from, to) =>
+        supabase.from("weekly_items").select("import_id, base").in("import_id", importIds).order("id").range(from, to),
+      );
 
       const totalsByImport = new Map<string, { items: number; bases: Set<string> }>();
       for (const item of itemReferences ?? []) {
@@ -291,6 +286,24 @@ export function useWeeklyImportsHistory() {
       });
     },
   });
+}
+
+/**
+ * O Supabase devolve no máximo 1.000 linhas por consulta. Lê todas as páginas
+ * para que semanas mais novas não fiquem de fora quando o histórico cresce.
+ */
+async function lerTodasAsPaginas<T>(
+  consulta: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const tamanho = 1000;
+  const resultado: T[] = [];
+  for (let from = 0; ; from += tamanho) {
+    const { data, error } = await consulta(from, from + tamanho - 1);
+    if (error) throw error;
+    resultado.push(...(data ?? []));
+    if (!data || data.length < tamanho) break;
+  }
+  return resultado;
 }
 
 /** Consulta os registros reais vinculados à importação semanal escolhida. */
@@ -323,15 +336,16 @@ export function useWeeklyItemsForImports(importIds: string[]) {
     queryFn: async (): Promise<WeeklyItem[]> => {
       if (!importIds.length) return [];
 
-      const { data, error } = await supabase
-        .from("weekly_items")
-        .select(
-          "id, import_id, base, service, package_id, route_id, driver, description, event_date, amount, operational_status, classification, decision, evidence_url, extra_data",
-        )
-        .in("import_id", importIds);
-
-      if (error) throw error;
-      return data ?? [];
+      return lerTodasAsPaginas((from, to) =>
+        supabase
+          .from("weekly_items")
+          .select(
+            "id, import_id, base, service, package_id, route_id, driver, description, event_date, amount, operational_status, classification, decision, evidence_url, extra_data",
+          )
+          .in("import_id", importIds)
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 }
@@ -354,18 +368,21 @@ export function useWeeklyClassificationsSurvey() {
       const validImportIds = (currentImports ?? []).map((i) => i.id);
       if (validImportIds.length === 0) return [];
 
-      const [{ data: items, error: itemsError }, { data: rules, error: rulesError }] =
+      const [items, { data: rules, error: rulesError }] =
         await Promise.all([
-          supabase
-            .from("weekly_items")
-            .select("import_id, base, classification")
-            .in("import_id", validImportIds),
+          lerTodasAsPaginas((from, to) =>
+            supabase
+              .from("weekly_items")
+              .select("import_id, base, classification")
+              .in("import_id", validImportIds)
+              .order("id")
+              .range(from, to),
+          ),
           supabase
             .from("classification_rules")
             .select("id, classification, category, active, created_at"),
         ]);
 
-      if (itemsError) throw itemsError;
       if (rulesError) throw rulesError;
 
       const rulesByClassification = new Map<string, ClassificationRule[]>();
