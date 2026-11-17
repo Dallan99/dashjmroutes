@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { FileSpreadsheet, Search, Trash2, Upload } from "lucide-react";
+import { Clock, FileSpreadsheet, Search, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/components/dashboard/data";
 
@@ -177,7 +177,12 @@ export function RealSavingsView() {
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-2xl font-extrabold">Savings Reais</h2><p className="text-sm text-muted-foreground">Cobrado − revertido = desconto real</p></div>
-      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground"><Upload className="size-4" /> Importar planilha<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={(e) => void read(e.target.files?.[0])} /></label>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => document.getElementById("historico-importacoes")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
+          <Clock className="size-3.5" /> Histórico
+        </button>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground"><Upload className="size-4" /> Importar planilha<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={(e) => void read(e.target.files?.[0])} /></label>
+      </div>
     </div>
     {message && <div className="rounded-lg border border-border bg-card p-3 text-sm font-semibold">{message}</div>}
 
@@ -208,7 +213,7 @@ export function RealSavingsView() {
     </div>
     <div className="h-72 rounded-xl border border-border bg-card p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={byBase}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip formatter={(value) => brl(Number(value))} /><Bar dataKey="value" fill="hsl(var(--secondary))" /></BarChart></ResponsiveContainer></div>
     <div className="overflow-x-auto rounded-xl border border-border bg-card"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Data</th><th className="p-3">Base</th><th className="p-3">Classificação</th><th className="p-3">Status</th><th className="p-3 text-right">Cobrado</th><th className="p-3 text-right">Revertido</th><th className="p-3 text-right">Desconto real</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id} className="border-b last:border-0"><td className="p-3">{item.reference_date ?? "—"}</td><td className="p-3">{item.base ?? "—"}</td><td className="p-3">{item.classification ?? "—"}</td><td className="p-3">{item.status ?? "—"}</td><td className="p-3 text-right">{item.charged_amount === null ? "Pendente" : brl(item.charged_amount)}</td><td className="p-3 text-right">{item.reversed_amount === null ? "Pendente" : brl(item.reversed_amount)}</td><td className={`p-3 text-right font-bold ${(item.real_discount ?? 0) < 0 ? "text-destructive" : ""}`}>{item.real_discount === null ? "Pendente" : brl(item.real_discount)}</td></tr>)}</tbody></table>{!filtered.length && <p className="p-8 text-center text-muted-foreground">Nenhum saving real importado.</p>}</div>
-    <section className="rounded-xl border border-border bg-card p-4"><h3 className="mb-3 font-bold">Histórico</h3><div className="space-y-2">{imports.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="font-semibold">{entry.file_name}</p><p className="text-xs text-muted-foreground">{entry.sheet_name ?? "Aba não informada"} · {entry.valid_rows} válidas · {entry.rejected_rows} rejeitadas · {new Date(entry.imported_at).toLocaleString("pt-BR")}</p></div><button aria-label="Excluir importação" onClick={() => void removeImport(entry.id)} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="size-4" /></button></div>)}</div></section>
+    <section id="historico-importacoes" className="scroll-mt-6 rounded-xl border border-border bg-card p-4"><h3 className="mb-3 font-bold">Histórico</h3><div className="space-y-2">{imports.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="font-semibold">{entry.file_name}</p><p className="text-xs text-muted-foreground">{entry.sheet_name ?? "Aba não informada"} · {entry.valid_rows} válidas · {entry.rejected_rows} rejeitadas · {new Date(entry.imported_at).toLocaleString("pt-BR")}</p></div><button aria-label="Excluir importação" onClick={() => void removeImport(entry.id)} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="size-4" /></button></div>)}</div></section>
   </div>;
 }
 function Summary({ label, value }: { label: string; value: string }) {
