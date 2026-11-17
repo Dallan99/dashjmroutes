@@ -671,6 +671,14 @@ export function SavingsView({
             <Trash2 className="size-3.5" />
             Excluir semana
           </button>
+          <button
+            type="button"
+            onClick={() => setModalDetalhe("semanas")}
+            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[11px] font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+          >
+            <Clock className="size-3.5" />
+            Histórico
+          </button>
         </div>
       </aside>
 
